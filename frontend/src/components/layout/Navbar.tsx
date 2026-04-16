@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Activity } from "lucide-react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll } from "framer-motion";
 import { useState, useEffect } from "react";
 
 export function Navbar() {

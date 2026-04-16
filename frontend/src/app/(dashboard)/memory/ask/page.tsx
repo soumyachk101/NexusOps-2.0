@@ -1,18 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ChatInput } from "@/components/memory/ChatInput";
 import { AnswerCard } from "@/components/memory/AnswerCard";
 import { mockChatMessages } from "@/lib/mock-data";
 import { Brain, Sparkles } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
+import { memoryApi } from "@/lib/api";
 
 export default function MemoryAskPage() {
   const [messages, setMessages] = useState(mockChatMessages);
   const [isTyping, setIsTyping] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/v1/workspace')
+      .then(res => res.json())
+      .then(workspaces => {
+        if (workspaces && workspaces.length > 0) {
+          setWorkspaceId(workspaces[0].id);
+        }
+      });
+  }, []);
 
   const handleSubmit = (message: string) => {
+    if (!workspaceId) return;
+
     const newUserMsg = {
       id: `msg-${Date.now()}`,
       role: "user" as const,
@@ -23,30 +37,22 @@ export default function MemoryAskPage() {
     setMessages((prev) => [...prev, newUserMsg]);
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = {
-        id: `msg-${Date.now() + 1}`,
-        role: "assistant" as const,
-        content:
-          "Based on team discussions, I found relevant context about this topic. The team addressed this in multiple conversations and made specific decisions that I can summarize for you.\n\nThe key decision points were documented across several channels, with the most relevant inputs coming from engineering standup notes and direct Telegram discussions.",
-        sources: [
-          {
-            id: "s-new-1",
-            text: "Relevant discussion found in engineering channel",
-            source: "telegram",
-            source_type: "telegram",
-            author: "Rahul",
-            timestamp: new Date(Date.now() - 86400000).toISOString(),
-            similarity_score: 0.89,
-          },
-        ],
-        confidence: 0.87,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
-      setIsTyping(false);
-    }, 2000);
+    memoryApi.query(workspaceId, message)
+      .then((res) => {
+        const aiResponse = {
+          id: `msg-${Date.now() + 1}`,
+          role: "assistant" as const,
+          content: res.answer,
+          sources: res.sources as any,
+          confidence: 0.9, // Default confidence since mock doesn't provide it
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+        setIsTyping(false);
+      })
+      .catch(() => {
+        setIsTyping(false);
+      });
   };
 
   return (

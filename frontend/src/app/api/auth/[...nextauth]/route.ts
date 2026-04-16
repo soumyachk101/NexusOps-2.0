@@ -1,24 +1,104 @@
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GitHubProvider from "next-auth/providers/github";
 
-export const authOptions: NextAuthOptions = {
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "test@example.com" },
-        password: { label: "Password", type: "password" }
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // Mock authentication for development
-        if (credentials?.email === "test@example.com" && credentials?.password === "password") {
-          return { id: "1", name: "Test User", email: "test@example.com" };
+        if (!credentials?.email || !credentials?.password) return null;
+
+        try {
+          const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+          });
+
+          if (!res.ok) return null;
+
+          const data = await res.json();
+          // Return user + tokens so we can store them in the JWT
+          return {
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            image: data.user.avatar_url,
+            accessToken: data.tokens.access_token,
+            refreshToken: data.tokens.refresh_token,
+            provider: data.user.provider,
+          };
+        } catch (error) {
+          console.error("Auth error:", error);
+          return null;
         }
-        return null;
-      }
-    })
+      },
+    }),
+    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+      ? [
+          GitHubProvider({
+            clientId: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+          }),
+        ]
+      : []),
   ],
+  callbacks: {
+    async signIn({ user, account }) {
+      // For GitHub OAuth: exchange the token with our backend
+      if (account?.provider === "github" && account.access_token) {
+        try {
+          const res = await fetch(
+            `${API_BASE}/api/v1/auth/github/callback?code=${account.access_token}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const u = user as unknown as Record<string, unknown>;
+            u.accessToken = data.tokens.access_token;
+            u.refreshToken = data.tokens.refresh_token;
+            u.backendId = data.user.id;
+          }
+        } catch (e) {
+          console.error("GitHub backend sync error:", e);
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user }) {
+      // On initial sign in, persist backend tokens into the JWT
+      if (user) {
+        const u = user as unknown as Record<string, unknown>;
+        token.accessToken = u.accessToken as string | undefined;
+        token.refreshToken = u.refreshToken as string | undefined;
+        token.backendId = (u.backendId || u.id) as string | undefined;
+        token.provider = u.provider as string | undefined;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // Expose backend tokens and user ID in the session
+      const s = session as unknown as Record<string, unknown>;
+      s.accessToken = token.accessToken;
+      s.refreshToken = token.refreshToken;
+      if (session.user) {
+        const su = session.user as unknown as Record<string, unknown>;
+        su.id = token.backendId || token.sub;
+        su.provider = token.provider;
+      }
+      return session;
+    },
+  },
   pages: {
     signIn: "/login",
   },

@@ -1,16 +1,35 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { UnifiedStats } from "@/components/dashboard/UnifiedStats";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { IncidentCard } from "@/components/autofix/IncidentCard";
-import { mockDashboardStats, mockActivityFeed, mockIncidents, mockChatMessages } from "@/lib/mock-data";
+import { mockDashboardStats, mockActivityFeed, mockChatMessages } from "@/lib/mock-data";
 import { Search, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { autofixApi, workspaceApi, Incident } from "@/lib/api";
 
 export default function DashboardPage() {
-  const activeIncidents = mockIncidents.filter(
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const { workspaces } = await workspaceApi.list();
+        if (workspaces && workspaces.length > 0) {
+          const data = await autofixApi.listIncidents(workspaces[0].id);
+          setIncidents(data);
+        }
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      }
+    };
+    loadData();
+  }, []);
+
+  const activeIncidents = incidents.filter(
     (i) => !["resolved", "dismissed", "pr_created"].includes(i.status)
-  );
+  ).slice(0, 3); // Show top 3 only
 
   const recentQueries = mockChatMessages.filter((m) => m.role === "user");
 

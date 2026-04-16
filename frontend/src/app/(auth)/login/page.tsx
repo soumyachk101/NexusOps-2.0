@@ -4,9 +4,10 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Lock, Mail, ArrowRight, Activity, Command } from "lucide-react";
+import { Lock, ArrowRight, Activity, Command } from "lucide-react";
 import Link from "next/link";
 import { DitherShader } from "@/components/ui/dither-shader";
+// import { setTokens } from "@/lib/api";
 
 // Standard SVG for GitHub icon
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -40,7 +41,7 @@ export default function LoginPage() {
         router.push("/dashboard");
         router.refresh();
       }
-    } catch (err) {
+    } catch {
       setError("SYSTEM FAULT. CONNECTION DROPPED.");
     } finally {
       setIsLoading(false);

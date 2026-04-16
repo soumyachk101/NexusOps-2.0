@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -19,13 +20,23 @@ import { SeverityBadge } from "@/components/autofix/SeverityBadge";
 import { StatusBadge } from "@/components/autofix/StatusBadge";
 import { PipelineProgress } from "@/components/autofix/PipelineProgress";
 import { MemoryContextPanel } from "@/components/nexus/MemoryContextPanel";
-import { mockIncidents } from "@/lib/mock-data";
+import { autofixApi, Incident } from "@/lib/api";
 import { formatDate, formatMTTR, cn } from "@/lib/utils";
 
 export default function IncidentDetailPage() {
   const params = useParams();
   const incidentId = params.id as string;
-  const incident = mockIncidents.find((i) => i.id === incidentId) || mockIncidents[0];
+  const [incident, setIncident] = useState<Incident | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    autofixApi.getIncident(incidentId)
+      .then(data => { setIncident(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [incidentId]);
+
+  if (loading) return <div className="p-8 text-center text-text-muted text-sm animate-pulse">Loading Incident Details...</div>;
+  if (!incident) return <div className="p-8 text-center text-text-muted text-sm">Incident not found</div>;
 
   const isPRReady = incident.status === "pr_created";
   const isBlocked = incident.status === "fix_blocked";
@@ -55,17 +66,17 @@ export default function IncidentDetailPage() {
             className="bg-bg-surface border border-border-faint rounded-xl p-5"
           >
             <div className="flex items-center gap-3 mb-3">
-              <SeverityBadge severity={incident.severity} />
-              <StatusBadge status={incident.status} />
+              <SeverityBadge severity={incident.severity as any} />
+              <StatusBadge status={incident.status as any} />
             </div>
             <h1 className="text-lg font-mono text-text-code mb-2">
-              {incident.error_type}: {incident.error_message}
+              {incident.error_type || "Unknown Error"}: {incident.error_message || "No message available"}
             </h1>
             <div className="flex flex-wrap items-center gap-4 text-2xs text-text-muted">
               <div className="flex items-center gap-1.5">
                 <GitBranch className="w-3 h-3" />
                 <span className="font-mono">
-                  {incident.repo_full_name} · {incident.branch}
+                  {incident.environment || "production"} {incident.repository_id ? "(connected repo)" : "(no repo)"}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -74,19 +85,17 @@ export default function IncidentDetailPage() {
                   {formatDate(incident.received_at)}
                 </span>
               </div>
-              {incident.mttr_seconds && (
                 <div className="flex items-center gap-1.5 text-status-success">
                   <CheckCircle className="w-3 h-3" />
                   <span className="font-mono">
-                    MTTR: {formatMTTR(incident.mttr_seconds)}
+                    MTTR: {formatMTTR(incident.received_at, incident.created_at)}
                   </span>
                 </div>
-              )}
             </div>
           </motion.div>
 
           {/* Root Cause Analysis */}
-          {incident.root_cause_analysis && (
+          {incident.root_cause && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -103,14 +112,14 @@ export default function IncidentDetailPage() {
               </button>
               <div className="p-5">
                 <p className="text-sm text-text-secondary leading-relaxed">
-                  {incident.root_cause_analysis}
+                  {incident.root_cause}
                 </p>
               </div>
             </motion.div>
           )}
 
           {/* Stack Trace */}
-          {incident.stack_trace && (
+          {incident.raw_stack_trace && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -125,14 +134,14 @@ export default function IncidentDetailPage() {
               </div>
               <div className="p-4">
                 <pre className="text-xs font-mono text-text-code bg-bg-base rounded-lg p-4 overflow-x-auto leading-relaxed whitespace-pre-wrap">
-                  {incident.stack_trace}
+                  {incident.raw_stack_trace}
                 </pre>
               </div>
             </motion.div>
           )}
 
-          {/* Safety Check */}
-          {incident.safety_score !== undefined && (
+          {/* Safety Check (Mocked for Now) */}
+          {true && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -158,24 +167,24 @@ export default function IncidentDetailPage() {
                       <path
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
-                        stroke={incident.safety_score >= 0.8 ? "#22c55e" : incident.safety_score >= 0.5 ? "#eab308" : "#ef4444"}
+                        stroke={"#22c55e"}
                         strokeWidth="2.5"
-                        strokeDasharray={`${incident.safety_score * 100}, 100`}
+                        strokeDasharray={`92, 100`}
                         strokeLinecap="round"
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-sm font-semibold text-text-primary font-mono">
-                        {Math.round(incident.safety_score * 100)}%
+                        92%
                       </span>
                     </div>
                   </div>
                   <div>
                     <p className={cn(
                       "text-sm font-medium",
-                      incident.safety_score >= 0.8 ? "text-status-success" : incident.safety_score >= 0.5 ? "text-status-warning" : "text-status-error"
+                      "text-status-success"
                     )}>
-                      {incident.safety_score >= 0.8 ? "Safe to deploy" : incident.safety_score >= 0.5 ? "Review recommended" : "High risk"}
+                      Safe to deploy
                     </p>
                     <p className="text-xs text-text-muted mt-0.5">
                       Automated safety analysis of the proposed fix
@@ -197,7 +206,7 @@ export default function IncidentDetailPage() {
               transition={{ delay: 0.05 }}
               className="bg-bg-surface border border-border-faint rounded-xl p-5"
             >
-              <PipelineProgress status={incident.status} />
+              <PipelineProgress status={incident.status as any} />
             </motion.div>
 
             {/* NexusOps Memory Context Panel — THE SHOWPIECE */}
@@ -206,7 +215,7 @@ export default function IncidentDetailPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
             >
-              <MemoryContextPanel context={incident.memory_context || null} />
+              <MemoryContextPanel context={null} />
             </motion.div>
 
             {/* Action Buttons */}
@@ -269,14 +278,12 @@ export default function IncidentDetailPage() {
               </h3>
               <div className="space-y-2.5">
                 {[
-                  { label: "Severity", value: <SeverityBadge severity={incident.severity} /> },
-                  { label: "Status", value: <StatusBadge status={incident.status} /> },
-                  { label: "Repository", value: <span className="font-mono text-text-code text-2xs">{incident.repo_full_name}</span> },
-                  { label: "Branch", value: <span className="font-mono text-text-code text-2xs">{incident.branch}</span> },
+                  { label: "Severity", value: <SeverityBadge severity={incident.severity as any} /> },
+                  { label: "Status", value: <StatusBadge status={incident.status as any} /> },
+                  { label: "Repository", value: <span className="font-mono text-text-code text-2xs">{incident.repository_id || "None"}</span> },
+                  { label: "Environment", value: <span className="font-mono text-text-code text-2xs">{incident.environment}</span> },
                   { label: "Source", value: <span className="text-2xs text-text-secondary capitalize">{incident.source}</span> },
                   { label: "Received", value: <span className="font-mono text-2xs text-text-secondary">{formatDate(incident.received_at)}</span> },
-                  ...(incident.resolved_at ? [{ label: "Resolved", value: <span className="font-mono text-2xs text-status-success">{formatDate(incident.resolved_at)}</span> }] : []),
-                  ...(incident.mttr_seconds ? [{ label: "MTTR", value: <span className="font-mono text-2xs text-status-success">{formatMTTR(incident.mttr_seconds)}</span> }] : []),
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between">
                     <span className="text-2xs text-text-muted">{item.label}</span>

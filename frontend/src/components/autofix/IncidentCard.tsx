@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { GitBranch, Clock } from "lucide-react";
-import { Incident } from "@/lib/types";
+import { Incident } from "@/lib/api";
 import { SeverityBadge } from "./SeverityBadge";
 import { StatusBadge } from "./StatusBadge";
 import { formatRelativeTime, cn } from "@/lib/utils";
@@ -30,24 +30,24 @@ export function IncidentCard({ incident, index }: IncidentCardProps) {
         className={cn(
           "bg-bg-surface border border-border-faint rounded-xl p-4 border-l-4 cursor-pointer",
           "hover:bg-bg-hover hover:-translate-y-0.5 transition-all duration-150",
-          severityBorderColors[incident.severity],
+          severityBorderColors[incident.severity] || severityBorderColors["medium"],
           incident.severity === "critical" && "animate-critical-blink glow-critical"
         )}
       >
         {/* Row 1: Severity + Error Type + Status */}
         <div className="flex items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-2 min-w-0">
-            <SeverityBadge severity={incident.severity} />
+            <SeverityBadge severity={incident.severity as any} />
             <span className="text-2xs font-mono text-text-code truncate">
-              {incident.error_type}
+              {incident.error_type || "Unknown Error"}
             </span>
           </div>
-          <StatusBadge status={incident.status} />
+          <StatusBadge status={incident.status as any} />
         </div>
 
         {/* Row 2: Error Message */}
         <p className="text-sm font-mono text-text-code/80 truncate mb-3">
-          &quot;{incident.error_message}&quot;
+          &quot;{incident.error_message || "No message"}&quot;
         </p>
 
         {/* Row 3: Repo + Time */}
@@ -55,7 +55,7 @@ export function IncidentCard({ incident, index }: IncidentCardProps) {
           <div className="flex items-center gap-1.5">
             <GitBranch className="w-3 h-3" />
             <span className="font-mono">
-              {incident.repo_full_name} · {incident.branch}
+              {incident.environment || "production"} {incident.repository_id ? "repo connected" : "no repo"}
             </span>
           </div>
           <div className="flex items-center gap-1.5">

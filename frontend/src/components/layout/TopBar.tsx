@@ -36,10 +36,10 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         <div className="relative group">
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-bg-elevated border border-border-faint hover:border-border-default transition-all text-sm">
             <div className="w-5 h-5 rounded bg-nexus-primary/20 flex items-center justify-center text-2xs font-bold text-nexus-primary">
-              {currentWorkspace.name.charAt(0)}
+              {currentWorkspace ? currentWorkspace.name.charAt(0) : "N"}
             </div>
             <span className="text-text-primary text-xs font-medium max-w-[120px] truncate">
-              {currentWorkspace.name}
+              {currentWorkspace ? currentWorkspace.name : "Select Workspace"}
             </span>
             <ChevronDown className="w-3 h-3 text-text-muted" />
           </button>
@@ -53,7 +53,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                   onClick={() => setCurrentWorkspace(ws)}
                   className={cn(
                     "flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs transition-colors",
-                    ws.id === currentWorkspace.id
+                    ws.id === currentWorkspace?.id
                       ? "bg-bg-selected text-text-primary"
                       : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                   )}

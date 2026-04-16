@@ -1,16 +1,36 @@
 "use client";
 
 import { IncidentCard } from "@/components/autofix/IncidentCard";
-import { mockIncidents } from "@/lib/mock-data";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { autofixApi, workspaceApi, Incident } from "@/lib/api";
 
 const filters = ["All", "Active", "Resolved", "Dismissed"] as const;
 
 export default function IncidentsPage() {
   const [activeFilter, setActiveFilter] = useState<typeof filters[number]>("All");
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = mockIncidents.filter((i) => {
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const { workspaces } = await workspaceApi.list();
+        if (workspaces && workspaces.length > 0) {
+          const data = await autofixApi.listIncidents(workspaces[0].id);
+          setIncidents(data);
+        }
+      } catch (err) {
+        console.error("Failed to load incidents:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const filtered = incidents.filter((i) => {
     if (activeFilter === "All") return true;
     if (activeFilter === "Active")
       return !["resolved", "dismissed", "pr_created"].includes(i.status);
@@ -19,6 +39,8 @@ export default function IncidentsPage() {
     if (activeFilter === "Dismissed") return i.status === "dismissed";
     return true;
   });
+
+  if (loading) return <div className="p-8 text-center text-text-muted text-sm animate-pulse">Loading Incidents...</div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

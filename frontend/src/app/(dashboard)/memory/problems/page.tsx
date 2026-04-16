@@ -1,37 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, MessageCircle } from "lucide-react";
-
-const mockProblems = [
-  {
-    id: "prob-1",
-    title: "Redis single-node approaching memory limit",
-    severity: "high" as const,
-    mentions: 4,
-    first_mentioned: "2025-01-10T09:00:00Z",
-    latest_mention: new Date(Date.now() - 2 * 3600000).toISOString(),
-    summary: "Multiple team members have flagged that the Redis instance is running near capacity. Migration to cluster mode has been discussed but not actioned.",
-  },
-  {
-    id: "prob-2",
-    title: "Missing rate limiting on public API",
-    severity: "high" as const,
-    mentions: 3,
-    first_mentioned: "2025-01-05T14:00:00Z",
-    latest_mention: new Date(Date.now() - 24 * 3600000).toISOString(),
-    summary: "Several public-facing endpoints lack rate limiting, creating a potential attack vector. Implementation has been deferred twice.",
-  },
-  {
-    id: "prob-3",
-    title: "Flaky integration tests in CI",
-    severity: "medium" as const,
-    mentions: 6,
-    first_mentioned: "2024-12-20T10:00:00Z",
-    latest_mention: new Date(Date.now() - 48 * 3600000).toISOString(),
-    summary: "CI pipeline intermittently fails due to timing-dependent integration tests. Team has discussed adding retries or refactoring test setup.",
-  },
-];
+import { memoryApi, workspaceApi, Problem } from "@/lib/api";
 
 const severityColors = {
   high: "border-l-sev-high text-sev-high",
@@ -40,6 +12,29 @@ const severityColors = {
 };
 
 export default function MemoryProblemsPage() {
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const { workspaces } = await workspaceApi.list();
+        if (workspaces && workspaces.length > 0) {
+          const data = await memoryApi.listProblems(workspaces[0].id);
+          setProblems(data);
+        }
+      } catch (err) {
+        console.error("Failed to load problems:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  if (loading) return <div className="p-8 text-center text-text-muted text-sm animate-pulse">Loading Problems...</div>;
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div>
@@ -52,29 +47,32 @@ export default function MemoryProblemsPage() {
       </div>
 
       <div className="space-y-3">
-        {mockProblems.map((problem, index) => (
-          <motion.div
-            key={problem.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-            className={`bg-bg-surface border border-border-faint rounded-xl p-5 border-l-4 ${severityColors[problem.severity].split(" ")[0]}`}
-          >
-            <div className="flex items-start justify-between gap-4 mb-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className={`w-4 h-4 ${severityColors[problem.severity].split(" ")[1]}`} />
-                <h3 className="text-sm font-medium text-text-primary">{problem.title}</h3>
-              </div>
+        {problems.map((problem, index) => {
+          const sev = (problem.severity || 'medium') as keyof typeof severityColors;
+          return (
+            <motion.div
+              key={problem.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              className={`bg-bg-surface border border-border-faint rounded-xl p-5 border-l-4 ${severityColors[sev].split(" ")[0]}`}
+            >
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className={`w-4 h-4 ${severityColors[sev].split(" ")[1]}`} />
+                  <h3 className="text-sm font-medium text-text-primary">{problem.title}</h3>
+                </div>
               <div className="flex items-center gap-1.5 text-2xs text-text-muted shrink-0">
                 <MessageCircle className="w-3 h-3" />
-                {problem.mentions} mentions
+                {problem.frequency} mentions
               </div>
             </div>
             <p className="text-xs text-text-secondary leading-relaxed ml-6">
-              {problem.summary}
+              {problem.description}
             </p>
           </motion.div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

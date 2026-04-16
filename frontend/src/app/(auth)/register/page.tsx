@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Lock, Mail, ArrowRight, User, TerminalSquare } from "lucide-react";
 import Link from "next/link";
 import { DitherShader } from "@/components/ui/dither-shader";
+import { authApi, setTokens } from "@/lib/api";
 
 // Standard SVG for GitHub icon
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -28,13 +29,31 @@ export default function RegisterPage() {
     setIsLoading(true);
     setError("");
 
-    // Simulate registration process before redirecting
-    // In a real app, this would hit /api/auth/register
-    setTimeout(() => {
-      // Auto login mock
+    try {
+      // Step 1: Register with backend
+      const data = await authApi.register(email, name, password);
+      setTokens(data.tokens.access_token, data.tokens.refresh_token);
+
+      // Step 2: Auto-login via NextAuth to create session
+      const res = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
+
+      if (res?.error) {
+        // Registration succeeded but session creation failed — redirect to login
+        router.push("/login?registered=true");
+      } else {
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch (err: unknown) {
+      const errorData = err as Record<string, unknown>;
+      setError((errorData?.detail as string) || "REGISTRATION FAILED. IDENTITY REJECTED.");
+    } finally {
       setIsLoading(false);
-      router.push("/login?registered=true");
-    }, 1500);
+    }
   };
 
   const handleGithubLogin = () => {

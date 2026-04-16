@@ -23,7 +23,33 @@ const statusConfig = {
   dismissed: { color: "bg-status-neutral/10 text-status-neutral border-border-default", label: "Dismissed" },
 };
 
+import { useEffect, useState } from "react";
+import { memoryApi, workspaceApi, Task } from "@/lib/api";
+
 export default function MemoryTasksPage() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const { workspaces } = await workspaceApi.list();
+        if (workspaces && workspaces.length > 0) {
+          const data = await memoryApi.listTasks(workspaces[0].id);
+          setTasks(data);
+        }
+      } catch (err) {
+        console.error("Failed to load tasks:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  if (loading) return <div className="p-8 text-center text-text-muted text-sm animate-pulse">Loading Tasks...</div>;
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -38,10 +64,10 @@ export default function MemoryTasksPage() {
 
       {/* Task List */}
       <div className="space-y-3">
-        {mockTasks.map((task, index) => {
-          const priority = priorityConfig[task.priority];
+        {tasks.map((task, index) => {
+          const priority = priorityConfig[task.priority as keyof typeof priorityConfig] || priorityConfig.medium;
           const PriorityIcon = priority.icon;
-          const status = statusConfig[task.status];
+          const status = statusConfig[task.status as keyof typeof statusConfig] || statusConfig.detected;
 
           return (
             <motion.div
@@ -76,24 +102,24 @@ export default function MemoryTasksPage() {
               {/* Source message */}
               <div className="ml-8 bg-bg-elevated rounded-lg p-3 border border-border-faint">
                 <p className="text-xs text-text-secondary italic font-mono leading-relaxed">
-                  &ldquo;{task.source_message}&rdquo;
+                  &ldquo;{task.source_preview}&rdquo;
                 </p>
               </div>
 
               {/* Footer */}
               <div className="ml-8 mt-3 flex items-center justify-between text-2xs text-text-muted">
                 <div className="flex items-center gap-3">
-                  {task.assignee && (
-                    <span>Assignee: <span className="text-text-secondary">{task.assignee}</span></span>
+                  {task.assignee_hint && (
+                    <span>Assignee: <span className="text-text-secondary">{task.assignee_hint}</span></span>
                   )}
                   <span className="font-mono">
                     Detected {formatRelativeTime(task.detected_at)}
                   </span>
                 </div>
-                {task.jira_key && (
+                {task.jira_ticket_key && (
                   <span className="flex items-center gap-1 text-nexus-primary font-mono">
                     <ExternalLink className="w-3 h-3" />
-                    {task.jira_key}
+                    {task.jira_ticket_key}
                   </span>
                 )}
               </div>

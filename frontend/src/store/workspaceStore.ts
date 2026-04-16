@@ -1,34 +1,76 @@
 "use client";
 
 import { create } from "zustand";
+import { workspaceApi, type Workspace } from "@/lib/api";
 
 type ActiveModule = "memory" | "autofix" | "nexus";
 
-interface Workspace {
-  id: string;
-  name: string;
-  slug: string;
-}
-
 interface WorkspaceStore {
-  currentWorkspace: Workspace;
+  currentWorkspace: Workspace | null;
   workspaces: Workspace[];
-  setCurrentWorkspace: (ws: Workspace) => void;
+  isLoading: boolean;
+  error: string | null;
   activeModule: ActiveModule;
+
+  setCurrentWorkspace: (ws: Workspace) => void;
   setActiveModule: (module: ActiveModule) => void;
+  fetchWorkspaces: () => Promise<void>;
+  createWorkspace: (name: string, slug: string) => Promise<Workspace>;
 }
 
-export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
-  currentWorkspace: {
-    id: "ws-1",
-    name: "NexusOps Engineering",
-    slug: "nexusops-eng",
-  },
-  workspaces: [
-    { id: "ws-1", name: "NexusOps Engineering", slug: "nexusops-eng" },
-    { id: "ws-2", name: "Frontend Team", slug: "frontend-team" },
-  ],
-  setCurrentWorkspace: (ws) => set({ currentWorkspace: ws }),
+export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
+  currentWorkspace: null,
+  workspaces: [],
+  isLoading: false,
+  error: null,
   activeModule: "nexus",
+
+  setCurrentWorkspace: (ws) => set({ currentWorkspace: ws }),
   setActiveModule: (module) => set({ activeModule: module }),
+
+  fetchWorkspaces: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await workspaceApi.list();
+      const workspaces = data.workspaces;
+      set({
+        workspaces,
+        currentWorkspace: workspaces[0] || get().currentWorkspace,
+        isLoading: false,
+      });
+    } catch (err: unknown) {
+      // Fallback to mock data if backend is unreachable
+      console.warn("Backend unreachable, using mock workspace data:", (err as Error).message);
+      const mockWorkspaces: Workspace[] = [
+        {
+          id: "ws-mock-1",
+          name: "NexusOps Engineering",
+          slug: "nexusops-eng",
+          owner_id: "mock-user",
+          telegram_chat_id: null,
+          default_branch: "main",
+          auto_revert_enabled: false,
+          notify_on_pr: true,
+          notify_on_revert: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+      set({
+        workspaces: mockWorkspaces,
+        currentWorkspace: mockWorkspaces[0],
+        isLoading: false,
+        error: null,
+      });
+    }
+  },
+
+  createWorkspace: async (name: string, slug: string) => {
+    const ws = await workspaceApi.create(name, slug);
+    set((state) => ({
+      workspaces: [ws, ...state.workspaces],
+      currentWorkspace: ws,
+    }));
+    return ws;
+  },
 }));

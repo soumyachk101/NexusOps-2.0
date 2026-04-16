@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Shield, Zap, GitPullRequest, Database, Lock, TerminalSquare, Command } from "lucide-react";
+import { Shield, Zap, GitPullRequest, Database, TerminalSquare } from "lucide-react";
 import { DitherShader } from "@/components/ui/dither-shader";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
