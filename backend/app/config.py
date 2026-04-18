@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
+    OLLAMA_API_BASE: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "qwen2.5-coder:7b"
+
 
     # ── GitHub OAuth ──
     GITHUB_CLIENT_ID: Optional[str] = None

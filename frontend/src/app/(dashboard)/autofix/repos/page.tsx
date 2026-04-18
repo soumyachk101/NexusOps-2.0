@@ -2,17 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { GitBranch, AlertCircle, CheckCircle } from "lucide-react";
+import { GitBranch, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { autofixApi, workspaceApi, Repository } from "@/lib/api";
-
-const langColors: Record<string, string> = {
-  TypeScript: "bg-blue-500",
-  Python: "bg-yellow-500",
-  Go: "bg-cyan-500",
-  JavaScript: "bg-yellow-400",
-  Rust: "bg-orange-500",
-};
 
 export default function ReposPage() {
   const [repos, setRepos] = useState<Repository[]>([]);

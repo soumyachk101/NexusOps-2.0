@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { mockTasks } from "@/lib/mock-data";
+
 import { formatRelativeTime, cn } from "@/lib/utils";
 import {
   ArrowUpCircle,

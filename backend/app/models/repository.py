@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Boolean, BigInteger, DateTime, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String, Boolean, BigInteger, DateTime, ForeignKey, func, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -12,8 +11,8 @@ class Repository(Base):
     """AutoFix Engine: connected GitHub repositories."""
     __tablename__ = "repositories"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     github_repo_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)  # 'owner/repo'
     name: Mapped[str] = mapped_column(String(255), nullable=False)

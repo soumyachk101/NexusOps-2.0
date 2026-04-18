@@ -66,8 +66,8 @@ export default function IncidentDetailPage() {
             className="bg-bg-surface border border-border-faint rounded-xl p-5"
           >
             <div className="flex items-center gap-3 mb-3">
-              <SeverityBadge severity={incident.severity as any} />
-              <StatusBadge status={incident.status as any} />
+              <SeverityBadge severity={incident.severity} />
+              <StatusBadge status={incident.status} />
             </div>
             <h1 className="text-lg font-mono text-text-code mb-2">
               {incident.error_type || "Unknown Error"}: {incident.error_message || "No message available"}
@@ -206,7 +206,7 @@ export default function IncidentDetailPage() {
               transition={{ delay: 0.05 }}
               className="bg-bg-surface border border-border-faint rounded-xl p-5"
             >
-              <PipelineProgress status={incident.status as any} />
+              <PipelineProgress status={incident.status} />
             </motion.div>
 
             {/* NexusOps Memory Context Panel — THE SHOWPIECE */}
@@ -278,8 +278,8 @@ export default function IncidentDetailPage() {
               </h3>
               <div className="space-y-2.5">
                 {[
-                  { label: "Severity", value: <SeverityBadge severity={incident.severity as any} /> },
-                  { label: "Status", value: <StatusBadge status={incident.status as any} /> },
+                  { label: "Severity", value: <SeverityBadge severity={incident.severity} /> },
+                  { label: "Status", value: <StatusBadge status={incident.status} /> },
                   { label: "Repository", value: <span className="font-mono text-text-code text-2xs">{incident.repository_id || "None"}</span> },
                   { label: "Environment", value: <span className="font-mono text-text-code text-2xs">{incident.environment}</span> },
                   { label: "Source", value: <span className="text-2xs text-text-secondary capitalize">{incident.source}</span> },

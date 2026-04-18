@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Text, Float, Integer, DateTime, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
+from sqlalchemy import String, Text, Float, Integer, DateTime, ForeignKey, func, Uuid, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -12,9 +11,9 @@ class Incident(Base):
     """AutoFix Engine: crash incidents from Sentry, webhooks, or manual input."""
     __tablename__ = "incidents"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
-    repository_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("repositories.id"))
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    repository_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("repositories.id"))
 
     # Raw data (PII may be present, encrypted at rest)
     raw_error: Mapped[str | None] = mapped_column(Text)
@@ -23,7 +22,7 @@ class Incident(Base):
     # Sanitized (safe to display)
     sanitized_error: Mapped[str | None] = mapped_column(Text)
     sanitized_stack_trace: Mapped[str | None] = mapped_column(Text)
-    sanitization_report: Mapped[dict] = mapped_column(JSONB, default=dict)
+    sanitization_report: Mapped[dict] = mapped_column(JSON, default=dict)
 
     # Classification
     error_type: Mapped[str | None] = mapped_column(String(255))
@@ -38,12 +37,13 @@ class Incident(Base):
 
     # Analysis
     root_cause: Mapped[str | None] = mapped_column(Text)
-    affected_files: Mapped[dict] = mapped_column(JSONB, default=list)
+    affected_files: Mapped[dict] = mapped_column(JSON, default=list)
     analysis_confidence: Mapped[float | None] = mapped_column(Float)
-    analysis_keywords: Mapped[list | None] = mapped_column(ARRAY(Text))
+    analysis_keywords: Mapped[list | None] = mapped_column(JSON)
 
     # Memory Engine enrichment
-    memory_context: Mapped[dict | None] = mapped_column(JSONB)
+    memory_context: Mapped[dict | None] = mapped_column(JSON)
+
 
     # PR info
     pr_url: Mapped[str | None] = mapped_column(Text)

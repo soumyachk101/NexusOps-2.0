@@ -37,13 +37,14 @@ export function IncidentCard({ incident, index }: IncidentCardProps) {
         {/* Row 1: Severity + Error Type + Status */}
         <div className="flex items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-2 min-w-0">
-            <SeverityBadge severity={incident.severity as any} />
+            <SeverityBadge severity={incident.severity} />
             <span className="text-2xs font-mono text-text-code truncate">
               {incident.error_type || "Unknown Error"}
             </span>
           </div>
-          <StatusBadge status={incident.status as any} />
+          <StatusBadge status={incident.status} />
         </div>
+
 
         {/* Row 2: Error Message */}
         <p className="text-sm font-mono text-text-code/80 truncate mb-3">

@@ -65,3 +65,6 @@ MANIFEST
 backend/.env
 frontend/.env
 .env
+.aider*
+*.db
+backend/scripts/gen_token.py

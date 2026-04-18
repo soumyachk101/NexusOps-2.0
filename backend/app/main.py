@@ -40,7 +40,7 @@ app.include_router(webhooks.router,   prefix="/webhook",           tags=["webhoo
 
 # ── Memory Engine ──
 app.include_router(ingest.router,    prefix="/api/v1/memory/ingest",   tags=["memory"])
-app.include_router(query.router,     prefix="/api/v1/memory",          tags=["memory"])
+app.include_router(query.router,     prefix="/api/v1/memory/query",    tags=["memory"])
 app.include_router(tasks.router,     prefix="/api/v1/memory/tasks",    tags=["memory"])
 app.include_router(problems.router,  prefix="/api/v1/memory/problems", tags=["memory"])
 

@@ -15,11 +15,10 @@ export default function MemoryAskPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/workspace')
-      .then(res => res.json())
-      .then(workspaces => {
-        if (workspaces && workspaces.length > 0) {
-          setWorkspaceId(workspaces[0].id);
+    workspaceApi.list()
+      .then(res => {
+        if (res.workspaces && res.workspaces.length > 0) {
+          setWorkspaceId(res.workspaces[0].id);
         }
       });
   }, []);
@@ -43,7 +42,7 @@ export default function MemoryAskPage() {
           id: `msg-${Date.now() + 1}`,
           role: "assistant" as const,
           content: res.answer,
-          sources: res.sources as any,
+          sources: res.sources,
           confidence: 0.9, // Default confidence since mock doesn't provide it
           timestamp: new Date().toISOString(),
         };
@@ -54,6 +53,7 @@ export default function MemoryAskPage() {
         setIsTyping(false);
       });
   };
+
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] -m-4 md:-m-6">
