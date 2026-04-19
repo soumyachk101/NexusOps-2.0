@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, BackgroundTasks, Request
 from pydantic import BaseModel
 from typing import Optional
@@ -6,19 +8,16 @@ from uuid import UUID
 from app.database import async_session_maker
 from app.models.incident import Incident
 from app.models.source import Source
+from app.models.document_chunk import DocumentChunk
+from app.models.task import Task, Problem
 from app.routers.autofix.incidents import run_incident_pipeline
+from app.services.ai_service import ai_service
+from app.services.embedding_service import embedding_service
 
 router = APIRouter()
 
 
-class SentryWebhookPayload(BaseModel):
-    """Simplified Sentry webhook payload."""
-    event: Optional[dict] = None
-    data: Optional[dict] = None
-
-
 class ErrorWebhookPayload(BaseModel):
-    """Custom webhook for any monitoring tool."""
     workspace_id: UUID
     error_message: str
     stack_trace: Optional[str] = None
@@ -27,10 +26,67 @@ class ErrorWebhookPayload(BaseModel):
     environment: str = "production"
 
 
-class TelegramMessage(BaseModel):
-    """Simplified Telegram Bot API message."""
-    message: Optional[dict] = None
-    update_id: Optional[int] = None
+async def _ingest_telegram_message(
+    workspace_id: str,
+    text: str,
+    sender: str,
+    chat_title: str,
+    message_id: str | None = None,
+):
+    """Background: store Telegram message as Source + DocumentChunks, detect tasks."""
+    async with async_session_maker() as db:
+        source = Source(
+            workspace_id=workspace_id,
+            name=f"[{sender}] {text[:100]}",
+            source_type="telegram_message",
+            status="processing",
+            external_id=message_id,
+            metadata_={"sender": sender, "chat_title": chat_title, "full_text": text},
+        )
+        db.add(source)
+        await db.commit()
+        await db.refresh(source)
+
+        # Generate embedding for this message
+        embedding = await embedding_service.generate_embedding(text)
+        embedding_json = embedding_service.embedding_to_json(embedding) if embedding else None
+
+        chunk = DocumentChunk(
+            workspace_id=UUID(workspace_id),
+            source_id=source.id,
+            chunk_index=0,
+            text=text,
+            embedding_json=embedding_json,
+            source_type="telegram_message",
+            sender=sender,
+            timestamp=datetime.now(timezone.utc),
+            channel_name=chat_title,
+        )
+        db.add(chunk)
+
+        source.status = "processed"
+        source.processed_at = datetime.now(timezone.utc)
+
+        # Detect tasks using Claude
+        try:
+            tasks = await ai_service.detect_tasks(text)
+            for t in tasks:
+                if not t.get("title"):
+                    continue
+                task = Task(
+                    workspace_id=UUID(workspace_id),
+                    title=t["title"],
+                    description=t.get("description", ""),
+                    priority=t.get("priority", "medium"),
+                    assignee_hint=t.get("assignee_hint"),
+                    source_preview=text[:200],
+                    status="pending",
+                )
+                db.add(task)
+        except Exception as e:
+            print(f"Task detection error (non-fatal): {e}")
+
+        await db.commit()
 
 
 @router.post("/sentry/{project_token}")
@@ -41,20 +97,17 @@ async def sentry_webhook(project_token: str, request: Request, background_tasks:
     except Exception:
         return {"status": "error", "detail": "Invalid JSON payload"}
 
-    # Extract from Sentry format
     event = body.get("event", body.get("data", {}).get("event", {}))
     error_message = (
         event.get("title")
         or event.get("message")
         or event.get("metadata", {}).get("value", "Unknown Sentry Error")
     )
-    
-    # Build stack trace from exception values
+
     stack_trace = ""
     exception_data = event.get("exception", {})
     if isinstance(exception_data, dict):
-        values = exception_data.get("values", [])
-        for exc in values:
+        for exc in exception_data.get("values", []):
             exc_type = exc.get("type", "Error")
             exc_value = exc.get("value", "")
             stack_trace += f"{exc_type}: {exc_value}\n"
@@ -62,17 +115,15 @@ async def sentry_webhook(project_token: str, request: Request, background_tasks:
                 filename = frame.get("filename", "?")
                 lineno = frame.get("lineno", "?")
                 func = frame.get("function", "?")
-                stack_trace += f"  File \"{filename}\", line {lineno}, in {func}\n"
+                stack_trace += f'  File "{filename}", line {lineno}, in {func}\n'
 
-    # We need to find which workspace this project_token maps to.
-    # For hackathon: use the token as workspace_id or find first workspace.
     async with async_session_maker() as db:
         incident = Incident(
-            workspace_id=project_token,  # treat token as workspace_id for simplicity
+            workspace_id=project_token,
             source="sentry",
             error_message=error_message,
             raw_stack_trace=stack_trace or None,
-            severity="high",  # Sentry errors default to high
+            severity="high",
             external_id=event.get("event_id"),
             status="received",
         )
@@ -86,7 +137,11 @@ async def sentry_webhook(project_token: str, request: Request, background_tasks:
 
 
 @router.post("/error/{project_token}")
-async def error_webhook(project_token: str, body: ErrorWebhookPayload, background_tasks: BackgroundTasks):
+async def error_webhook(
+    project_token: str,
+    body: ErrorWebhookPayload,
+    background_tasks: BackgroundTasks,
+):
     """Custom error webhook — any monitoring tool can POST error data."""
     async with async_session_maker() as db:
         incident = Incident(
@@ -108,8 +163,12 @@ async def error_webhook(project_token: str, body: ErrorWebhookPayload, backgroun
 
 
 @router.post("/telegram/{workspace_token}")
-async def telegram_webhook(workspace_token: str, request: Request):
-    """Handle Telegram Bot webhook — ingest messages as memory sources."""
+async def telegram_webhook(
+    workspace_token: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    """Handle Telegram Bot webhook — ingest messages as Memory Engine sources."""
     try:
         body = await request.json()
     except Exception:
@@ -123,25 +182,25 @@ async def telegram_webhook(workspace_token: str, request: Request):
     if not text:
         return {"status": "ignored", "reason": "No text in message"}
 
-    sender = from_user.get("first_name", "Unknown")
-    chat_title = chat.get("title", "Direct Message")
+    sender = from_user.get("username") or from_user.get("first_name", "Unknown")
+    chat_title = chat.get("title") or chat.get("username") or "Direct Message"
+    message_id = str(message.get("message_id", ""))
 
-    async with async_session_maker() as db:
-        source = Source(
-            workspace_id=workspace_token,
-            name=f"[{sender}] {text[:100]}",
-            source_type="telegram",
-            status="processed",
-        )
-        db.add(source)
-        await db.commit()
+    background_tasks.add_task(
+        _ingest_telegram_message,
+        workspace_token,
+        text,
+        sender,
+        chat_title,
+        message_id,
+    )
 
-    return {"status": "accepted", "message": f"Stored message from {sender}"}
+    return {"status": "accepted", "message": f"Ingesting message from {sender}"}
 
 
 @router.post("/deploy/{project_token}")
 async def deploy_webhook(project_token: str, request: Request):
-    """Deploy webhook — detect bad deploys for auto-revert."""
+    """Deploy webhook — receive deploy events for auto-revert monitoring."""
     try:
         body = await request.json()
     except Exception:

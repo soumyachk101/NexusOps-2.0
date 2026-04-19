@@ -8,16 +8,22 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.incident import Incident
 from app.models.fix import Fix
-from app.models.source import Source
+from app.models.repository import Repository
+from app.models.document_chunk import DocumentChunk
 from app.services.workspace_service import workspace_service
 from app.services.ai_service import ai_service
+from app.services.embedding_service import embedding_service
+from app.services.github_service import github_service
 from app.schemas.autofix import IncidentResponse, CreateManualIncidentRequest
+from app.config import settings
 
 router = APIRouter()
 
 
 async def run_incident_pipeline(incident_id: UUID):
-    """Full AI pipeline: sanitize → analyze (with memory) → generate fix."""
+    """Full AI pipeline:
+    sanitize → fetch code → query memory → analyze → generate fix → safety check → create draft PR
+    """
     async with async_session_maker() as db:
         result = await db.execute(select(Incident).where(Incident.id == incident_id))
         incident = result.scalar_one_or_none()
@@ -25,7 +31,7 @@ async def run_incident_pipeline(incident_id: UUID):
             return
 
         try:
-            # Step 1: Sanitize
+            # ── Step 1: Sanitize ──
             incident.status = "sanitizing"
             await db.commit()
 
@@ -33,55 +39,100 @@ async def run_incident_pipeline(incident_id: UUID):
             trace_text = incident.raw_stack_trace or ""
 
             sanitized_error, san_report = ai_service.sanitize_data(error_text)
-            sanitized_trace, _ = ai_service.sanitize_data(trace_text)
+            sanitized_trace, _ = ai_service.sanitize_data(trace_text) if trace_text else ("", {})
             incident.sanitized_error = sanitized_error
             incident.sanitized_stack_trace = sanitized_trace
             incident.sanitization_report = san_report
 
-            # Step 2: Query Memory Engine for context (THE SHOWPIECE!)
+            # ── Step 2: Fetch GitHub code context ──
+            incident.status = "fetching_code"
+            await db.commit()
+
+            code_context = ""
+            github_token = None
+            repo_full_name = None
+            repo_default_branch = "main"
+
+            repo_result = await db.execute(
+                select(Repository).where(Repository.workspace_id == incident.workspace_id)
+            )
+            repo = repo_result.scalars().first()
+            if repo and repo.github_token:
+                github_token = repo.github_token
+                repo_full_name = repo.full_name
+                repo_default_branch = repo.default_branch
+                code_context = await github_service.fetch_code_context(
+                    full_name=repo_full_name,
+                    affected_files=[],
+                    stack_trace=sanitized_trace,
+                    token=github_token,
+                )
+
+            # ── Step 3: Query Memory Engine (THE SHOWPIECE) ──
             incident.status = "querying_memory"
             await db.commit()
 
-            memory_context_list = []
-            try:
-                # Search for related content in sources
-                sources_result = await db.execute(
-                    select(Source).where(Source.workspace_id == incident.workspace_id)
-                )
-                sources = sources_result.scalars().all()
-                # Collect source names as context hints
-                for s in sources:
-                    if s.name:
-                        memory_context_list.append(
-                            f"[Source: {s.source_type}] {s.name} (status: {s.status})"
-                        )
-            except Exception as mem_err:
-                print(f"Memory query failed (non-fatal): {mem_err}")
+            memory_chunks = []
+            query_text = sanitized_error[:500]
 
-            # Store memory context on the incident
-            if memory_context_list:
+            query_embedding = await embedding_service.generate_embedding(query_text)
+
+            if query_embedding:
+                chunks_result = await db.execute(
+                    select(DocumentChunk).where(
+                        DocumentChunk.workspace_id == incident.workspace_id,
+                        DocumentChunk.embedding_json.isnot(None),
+                    )
+                )
+                all_chunks = chunks_result.scalars().all()
+
+                chunk_dicts = [
+                    {
+                        "text": c.text,
+                        "embedding_json": c.embedding_json,
+                        "source_type": c.source_type or "document",
+                        "sender": c.sender,
+                        "timestamp": c.timestamp.isoformat() if c.timestamp else None,
+                        "source_id": str(c.source_id),
+                    }
+                    for c in all_chunks
+                ]
+
+                # Threshold 0.60 per docs for memory enrichment
+                similar = embedding_service.search_similar_chunks(
+                    query_embedding,
+                    chunk_dicts,
+                    threshold=0.60,
+                    top_k=5,
+                )
+                memory_chunks = similar
+
+            memory_summary = ""
+            if memory_chunks:
+                memory_summary = await ai_service.summarize_memory_context(memory_chunks)
                 incident.memory_context = {
-                    "related_discussions": memory_context_list[:5],
-                    "query": sanitized_error[:200],
-                    "matches_found": len(memory_context_list),
-                    "insight": f"Found {len(memory_context_list)} related sources in team memory.",
+                    "related_discussions": [c["text"][:200] for c in memory_chunks],
+                    "query": query_text[:200],
+                    "matches_found": len(memory_chunks),
+                    "insight": memory_summary,
+                    "sources": list({c.get("source_type", "unknown") for c in memory_chunks}),
                 }
             else:
                 incident.memory_context = {
                     "related_discussions": [],
-                    "query": sanitized_error[:200],
+                    "query": query_text[:200],
                     "matches_found": 0,
                     "insight": "No prior team discussions found about this error. This may be a new issue.",
                 }
 
-            # Step 3: AI Analysis
+            # ── Step 4: AI Root Cause Analysis ──
             incident.status = "analyzing"
             await db.commit()
 
             analysis = await ai_service.analyze_incident(
                 error_message=sanitized_error,
                 stack_trace=sanitized_trace,
-                memory_context=memory_context_list if memory_context_list else None,
+                memory_context=memory_chunks if memory_chunks else None,
             )
 
             incident.root_cause = analysis.get("root_cause", "Analysis inconclusive")
@@ -89,12 +140,22 @@ async def run_incident_pipeline(incident_id: UUID):
             incident.analysis_confidence = analysis.get("confidence", 0.5)
             incident.analysis_keywords = [analysis.get("severity_assessment", "medium")]
 
-            # Update severity if AI thinks differently
             ai_severity = analysis.get("severity_assessment", "").lower()
             if ai_severity in ("critical", "high", "medium", "low"):
                 incident.severity = ai_severity
 
-            # Step 4: Generate Fix
+            # Re-fetch code for affected files now that we know them
+            if github_token and repo_full_name and incident.affected_files:
+                additional_context = await github_service.fetch_code_context(
+                    full_name=repo_full_name,
+                    affected_files=incident.affected_files,
+                    stack_trace=sanitized_trace,
+                    token=github_token,
+                )
+                if additional_context:
+                    code_context = additional_context
+
+            # ── Step 5: Generate Fix ──
             incident.status = "generating_fix"
             await db.commit()
 
@@ -102,6 +163,8 @@ async def run_incident_pipeline(incident_id: UUID):
                 error_message=sanitized_error,
                 root_cause=incident.root_cause,
                 stack_trace=sanitized_trace,
+                code_context=code_context,
+                memory_context=memory_chunks if memory_chunks else None,
             )
 
             fix = Fix(
@@ -112,34 +175,56 @@ async def run_incident_pipeline(incident_id: UUID):
                 caveats=fix_data.get("caveats", []),
                 file_changes=fix_data.get("file_changes", []),
                 safety_score=fix_data.get("safety_score", "REVIEW_REQUIRED"),
-                model_used=f"groq/{settings.GROQ_MODEL}",
+                model_used=f"anthropic/{settings.CLAUDE_MODEL}",
             )
             db.add(fix)
 
-            # Step 5: Safety Check
+            # ── Step 6: Safety Check ──
             incident.status = "safety_check"
             await db.commit()
 
             safety = fix_data.get("safety_score", "REVIEW_REQUIRED")
-            if safety == "BLOCKED":
-                incident.status = "fix_blocked"
-            else:
-                incident.status = "creating_pr"
-                # For hackathon: mark as ready (PR creation is mock)
-                incident.status = "pr_created"
-                from datetime import datetime, timezone
-                incident.pr_created_at = datetime.now(timezone.utc)
+            confidence = fix_data.get("confidence", 0.5)
 
+            if safety == "BLOCKED" or confidence < 0.5:
+                incident.status = "fix_blocked"
+                await db.commit()
+                return
+
+            # ── Step 7: Create Draft PR ──
+            incident.status = "creating_pr"
+            await db.commit()
+
+            if github_token and repo_full_name:
+                pr_result = await github_service.create_draft_pr(
+                    full_name=repo_full_name,
+                    token=github_token,
+                    incident_id=str(incident.id),
+                    fix_title=fix.title,
+                    fix_explanation=fix.explanation or "",
+                    file_changes=fix_data.get("file_changes", []),
+                    memory_summary=memory_summary,
+                    base_branch=repo_default_branch,
+                )
+
+                if pr_result.get("pr_url"):
+                    incident.pr_url = pr_result["pr_url"]
+                    incident.pr_number = pr_result["pr_number"]
+                    incident.pr_branch = pr_result["branch"]
+                    fix.pr_url = pr_result["pr_url"]
+
+            from datetime import datetime, timezone
+            incident.pr_created_at = datetime.now(timezone.utc)
+            incident.status = "pr_created"
             await db.commit()
 
         except Exception as e:
             print(f"Pipeline error for incident {incident_id}: {e}")
+            import traceback
+            traceback.print_exc()
             incident.status = "failed"
             incident.pipeline_error = str(e)
             await db.commit()
-
-
-from app.config import settings
 
 
 @router.post("/manual", response_model=IncidentResponse)
@@ -165,7 +250,6 @@ async def create_manual_incident(
     await db.commit()
     await db.refresh(incident)
 
-    # Trigger the full AI pipeline in background
     background_tasks.add_task(run_incident_pipeline, incident.id)
 
     return IncidentResponse.model_validate(incident)
@@ -181,7 +265,11 @@ async def list_incidents(
     if not is_member:
         raise HTTPException(status_code=403, detail="Not a member of this workspace")
 
-    result = await db.execute(select(Incident).where(Incident.workspace_id == workspace_id).order_by(Incident.received_at.desc()))
+    result = await db.execute(
+        select(Incident)
+        .where(Incident.workspace_id == workspace_id)
+        .order_by(Incident.received_at.desc())
+    )
     incidents = result.scalars().all()
     return [IncidentResponse.model_validate(i) for i in incidents]
 
@@ -250,7 +338,6 @@ async def retry_incident(
     await db.commit()
     await db.refresh(incident)
 
-    # Re-trigger the AI pipeline
     background_tasks.add_task(run_incident_pipeline, incident.id)
 
     return IncidentResponse.model_validate(incident)

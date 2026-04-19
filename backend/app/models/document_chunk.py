@@ -28,9 +28,12 @@ class DocumentChunk(Base):
     source_type: Mapped[str | None] = mapped_column(String(50))
     channel_name: Mapped[str | None] = mapped_column(String(255))
 
+    # Embedding stored as JSON array (TEXT) for SQLite/PostgreSQL compatibility.
+    # In production with PostgreSQL + pgvector, migrate to VECTOR(1536) for performance.
+    embedding_json: Mapped[str | None] = mapped_column(Text)
+
     # For incident_fix type: link back to incident
     incident_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
-
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

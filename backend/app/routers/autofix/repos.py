@@ -47,6 +47,7 @@ async def connect_repo(
         default_branch=default_branch,
         language=language,
         is_private=is_private,
+        github_token=body.github_token,  # persist for later PR creation + code fetch
     )
     db.add(repo)
     await db.commit()

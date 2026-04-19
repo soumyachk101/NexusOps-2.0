@@ -54,7 +54,7 @@ class ConnectRepoRequest(BaseModel):
     full_name: str
     name: str
     default_branch: str = "main"
-    github_token: Optional[str] = None
+    github_token: Optional[str] = None  # stored for PR creation and code fetch
 
 class FixResponse(BaseModel):
     id: UUID

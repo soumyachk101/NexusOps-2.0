@@ -68,3 +68,5 @@ frontend/.env
 .aider*
 *.db
 backend/scripts/gen_token.py
+# Added by code-review-graph
+.code-review-graph/

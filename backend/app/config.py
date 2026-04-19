@@ -7,29 +7,29 @@ class Settings(BaseSettings):
 
     # ── Core ──
     APP_NAME: str = "NexusOps"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
     SECRET_KEY: str = "change-me-in-production"
     ALLOWED_ORIGINS: str = "http://localhost:3000,https://nexusops.dev"
 
     # ── Database ──
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/nexusops"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./nexusops.db"
 
     # ── Redis ──
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # ── JWT ──
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24       # 24 hours
     JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # ── AI Services ──
-    GROQ_API_KEY: Optional[str] = None
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    # ── AI: Anthropic Claude ──
     ANTHROPIC_API_KEY: Optional[str] = None
+    CLAUDE_MODEL: str = "claude-sonnet-4-6"
+
+    # ── AI: OpenAI (embeddings + Whisper) ──
     OPENAI_API_KEY: Optional[str] = None
     EMBEDDING_MODEL: str = "text-embedding-3-small"
-
 
     # ── GitHub OAuth ──
     GITHUB_CLIENT_ID: Optional[str] = None
@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     JIRA_BASE_URL: Optional[str] = None
     JIRA_API_TOKEN: Optional[str] = None
     JIRA_USER_EMAIL: Optional[str] = None
+    JIRA_PROJECT_KEY: str = "NEX"
 
     # ── Deploy Platforms (auto-revert) ──
     VERCEL_TOKEN: Optional[str] = None

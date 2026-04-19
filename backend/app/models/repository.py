@@ -19,6 +19,7 @@ class Repository(Base):
     default_branch: Mapped[str] = mapped_column(String(100), default="main")
     language: Mapped[str | None] = mapped_column(String(50))  # 'python', 'javascript', 'typescript'
     is_private: Mapped[bool] = mapped_column(Boolean, default=False)
+    github_token: Mapped[str | None] = mapped_column(String(255))  # stored for PR creation
     webhook_id: Mapped[int | None] = mapped_column(BigInteger)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
