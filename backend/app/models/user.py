@@ -18,6 +18,8 @@ class User(Base):
     github_id: Mapped[str | None] = mapped_column(String(100), unique=True)
     github_username: Mapped[str | None] = mapped_column(String(100))
     github_access_token: Mapped[str | None] = mapped_column(Text)  # encrypted
+    google_id: Mapped[str | None] = mapped_column(String(100), unique=True)
+    google_access_token: Mapped[str | None] = mapped_column(Text)
     hashed_password: Mapped[str | None] = mapped_column(Text)
     provider: Mapped[str] = mapped_column(String(50), default="github")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

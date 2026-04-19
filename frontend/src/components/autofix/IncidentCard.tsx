@@ -18,9 +18,10 @@ const severityBorderColors: Record<string, string> = {
 interface IncidentCardProps {
   incident: Incident;
   index: number;
+  repoName?: string;
 }
 
-export function IncidentCard({ incident, index }: IncidentCardProps) {
+export function IncidentCard({ incident, index, repoName }: IncidentCardProps) {
   return (
     <Link href={`/autofix/incidents/${incident.id}`}>
       <motion.div
@@ -56,7 +57,7 @@ export function IncidentCard({ incident, index }: IncidentCardProps) {
           <div className="flex items-center gap-1.5">
             <GitBranch className="w-3 h-3" />
             <span className="font-mono">
-              {incident.environment || "production"} {incident.repository_id ? "repo connected" : "no repo"}
+              {incident.environment || "production"} {repoName ? `• ${repoName}` : incident.repository_id ? "• repo connected" : ""}
             </span>
           </div>
           <div className="flex items-center gap-1.5">

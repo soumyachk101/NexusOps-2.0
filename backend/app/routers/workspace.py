@@ -42,6 +42,12 @@ async def list_workspaces(
 ):
     """List all workspaces the current user belongs to."""
     workspaces = await workspace_service.list_user_workspaces(db, current_user.id)
+
+    # Auto-create a default workspace if the user has none
+    if not workspaces:
+        default_ws = await workspace_service.get_or_create_default(db, current_user)
+        workspaces = [default_ws]
+
     return WorkspaceListResponse(
         workspaces=[WorkspaceResponse.model_validate(ws) for ws in workspaces],
         total=len(workspaces),

@@ -1,11 +1,18 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { DocumentChunk } from "@/lib/types";
+
+interface SourceInfo {
+  name?: string;
+  type?: string;
+  id?: string;
+  source_type?: string;
+  timestamp?: string;
+  author?: string;
+}
 
 interface SourceBadgeProps {
-  chunk: DocumentChunk;
+  chunk: SourceInfo;
 }
 
 export function SourceBadge({ chunk }: SourceBadgeProps) {
@@ -18,9 +25,13 @@ export function SourceBadge({ chunk }: SourceBadgeProps) {
         "text-text-secondary"
       )}
     >
-      <span>{chunk.source_type}</span>
-      <span className="text-text-muted">·</span>
-      <span>{format(new Date(chunk.timestamp), "dd MMM")}</span>
+      <span>{chunk.source_type || chunk.type || "source"}</span>
+      {chunk.name && (
+        <>
+          <span className="text-text-muted">·</span>
+          <span>{chunk.name}</span>
+        </>
+      )}
       {chunk.author && (
         <>
           <span className="text-text-muted">·</span>

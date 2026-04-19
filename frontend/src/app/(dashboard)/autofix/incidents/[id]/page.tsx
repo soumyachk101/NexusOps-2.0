@@ -15,33 +15,127 @@ import {
   Shield,
   FileCode,
   Search,
+  Brain,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { SeverityBadge } from "@/components/autofix/SeverityBadge";
 import { StatusBadge } from "@/components/autofix/StatusBadge";
 import { PipelineProgress } from "@/components/autofix/PipelineProgress";
-import { MemoryContextPanel } from "@/components/nexus/MemoryContextPanel";
-import { autofixApi, Incident } from "@/lib/api";
+import { autofixApi, workspaceApi, Incident, Repository } from "@/lib/api";
 import { formatDate, formatMTTR, cn } from "@/lib/utils";
+
+interface Fix {
+  id: string;
+  incident_id: string;
+  title: string;
+  explanation?: string;
+  confidence?: number;
+  caveats?: string[];
+  file_changes?: Array<{
+    path: string;
+    original_code?: string;
+    fixed_code?: string;
+    change_summary?: string;
+  }>;
+  safety_score?: string;
+  model_used?: string;
+  pr_url?: string;
+  created_at: string;
+}
 
 export default function IncidentDetailPage() {
   const params = useParams();
   const incidentId = params.id as string;
   const [incident, setIncident] = useState<Incident | null>(null);
+  const [fixes, setFixes] = useState<Fix[]>([]);
+  const [repoName, setRepoName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const loadIncident = async () => {
+    try {
+      const data = await autofixApi.getIncident(incidentId);
+      setIncident(data);
+      
+      // Load fixes
+      try {
+        const fixData = await autofixApi.listFixes(incidentId);
+        setFixes(fixData);
+      } catch { /* no fixes yet */ }
+
+      // Load repo name
+      if (data.repository_id) {
+        try {
+          const { workspaces } = await workspaceApi.list();
+          if (workspaces?.length > 0) {
+            const repos = await autofixApi.listRepos(workspaces[0].id);
+            const found = repos.find((r: Repository) => r.id === data.repository_id);
+            if (found) setRepoName(found.full_name || found.name);
+          }
+        } catch {}
+      }
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    autofixApi.getIncident(incidentId)
-      .then(data => { setIncident(data); setLoading(false); })
-      .catch(() => setLoading(false));
+    loadIncident();
+    // Auto-refresh while pipeline is running
+    const interval = setInterval(async () => {
+      try {
+        const data = await autofixApi.getIncident(incidentId);
+        setIncident(data);
+        if (["pr_created", "resolved", "dismissed", "failed", "fix_blocked"].includes(data.status)) {
+          // Load fixes when pipeline completes
+          try {
+            const fixData = await autofixApi.listFixes(incidentId);
+            setFixes(fixData);
+          } catch {}
+          clearInterval(interval);
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
   }, [incidentId]);
 
   if (loading) return <div className="p-8 text-center text-text-muted text-sm animate-pulse">Loading Incident Details...</div>;
   if (!incident) return <div className="p-8 text-center text-text-muted text-sm">Incident not found</div>;
 
+  const memoryCtx = incident.memory_context;
   const isPRReady = incident.status === "pr_created";
   const isBlocked = incident.status === "fix_blocked";
   const isFailed = incident.status === "failed";
   const isTerminal = ["pr_created", "resolved", "dismissed"].includes(incident.status);
+  const isProcessing = ["received", "sanitizing", "querying_memory", "analyzing", "generating_fix", "safety_check", "creating_pr"].includes(incident.status);
+
+  const handleStatusUpdate = async (status: string) => {
+    try {
+      setActionLoading(true);
+      const updated = await autofixApi.updateIncidentStatus(incidentId, status);
+      setIncident(updated);
+    } catch (error) {
+      console.error("Failed to update status:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    try {
+      setActionLoading(true);
+      const updated = await autofixApi.retryIncident(incidentId);
+      setIncident(updated);
+    } catch (error) {
+      console.error("Failed to retry incident:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const fix = fixes[0]; // Primary fix
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -68,15 +162,21 @@ export default function IncidentDetailPage() {
             <div className="flex items-center gap-3 mb-3">
               <SeverityBadge severity={incident.severity} />
               <StatusBadge status={incident.status} />
+              {isProcessing && (
+                <span className="flex items-center gap-1.5 text-2xs text-yellow-400 animate-pulse">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  AI Pipeline Running...
+                </span>
+              )}
             </div>
             <h1 className="text-lg font-mono text-text-code mb-2">
-              {incident.error_type || "Unknown Error"}: {incident.error_message || "No message available"}
+              {incident.error_type || "Error"}: {incident.error_message || "No message available"}
             </h1>
             <div className="flex flex-wrap items-center gap-4 text-2xs text-text-muted">
               <div className="flex items-center gap-1.5">
                 <GitBranch className="w-3 h-3" />
                 <span className="font-mono">
-                  {incident.environment || "production"} {incident.repository_id ? "(connected repo)" : "(no repo)"}
+                  {incident.environment || "production"} {repoName ? `(repo: ${repoName})` : ""}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -102,18 +202,85 @@ export default function IncidentDetailPage() {
               transition={{ delay: 0.1 }}
               className="bg-bg-surface border border-border-faint rounded-xl overflow-hidden"
             >
-              <button className="w-full px-5 py-4 flex items-center justify-between border-b border-border-faint">
+              <div className="px-5 py-4 flex items-center justify-between border-b border-border-faint">
                 <div className="flex items-center gap-2">
                   <Search className="w-4 h-4 text-autofix-primary" />
                   <h2 className="text-sm font-semibold text-text-primary">
-                    Root Cause Analysis
+                    AI Root Cause Analysis
                   </h2>
                 </div>
-              </button>
+                {incident.analysis_confidence && (
+                  <span className="text-2xs text-text-muted font-mono">
+                    Confidence: {Math.round((incident.analysis_confidence || 0) * 100)}%
+                  </span>
+                )}
+              </div>
               <div className="p-5">
-                <p className="text-sm text-text-secondary leading-relaxed">
+                <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
                   {incident.root_cause}
                 </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* AI Generated Fix */}
+          {fix && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12 }}
+              className="bg-bg-surface border border-autofix-primary/30 rounded-xl overflow-hidden"
+            >
+              <div className="px-5 py-4 flex items-center justify-between border-b border-border-faint bg-autofix-primary/5">
+                <div className="flex items-center gap-2">
+                  <FileCode className="w-4 h-4 text-autofix-primary" />
+                  <h2 className="text-sm font-semibold text-text-primary">
+                    AI-Generated Fix: {fix.title}
+                  </h2>
+                </div>
+                <span className={cn(
+                  "text-2xs font-mono px-2 py-0.5 rounded",
+                  fix.safety_score === "SAFE" ? "bg-green-500/20 text-green-400" :
+                  fix.safety_score === "BLOCKED" ? "bg-red-500/20 text-red-400" :
+                  "bg-yellow-500/20 text-yellow-400"
+                )}>
+                  {fix.safety_score || "REVIEW_REQUIRED"}
+                </span>
+              </div>
+              <div className="p-5 space-y-4">
+                {fix.explanation && (
+                  <p className="text-sm text-text-secondary leading-relaxed">{fix.explanation}</p>
+                )}
+                {fix.file_changes && fix.file_changes.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">File Changes</h3>
+                    {fix.file_changes.map((fc, i) => (
+                      <div key={i} className="bg-bg-base rounded-lg p-3 border border-border-faint">
+                        <p className="text-xs font-mono text-autofix-primary mb-1">{fc.path}</p>
+                        <p className="text-xs text-text-secondary">{fc.change_summary}</p>
+                        {fc.fixed_code && (
+                          <pre className="mt-2 text-xs font-mono text-green-400 bg-green-500/5 rounded p-2 overflow-x-auto">
+                            {fc.fixed_code}
+                          </pre>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {fix.caveats && fix.caveats.length > 0 && (
+                  <div className="flex items-start gap-2 p-3 bg-yellow-500/5 rounded-lg border border-yellow-500/20">
+                    <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
+                    <div className="text-xs text-yellow-300/80">
+                      <p className="font-semibold mb-1">Caveats:</p>
+                      <ul className="list-disc list-inside space-y-0.5">
+                        {fix.caveats.map((c, i) => <li key={i}>{c}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+                <div className="text-2xs text-text-muted font-mono">
+                  Model: {fix.model_used || "groq"} · Confidence: {Math.round((fix.confidence || 0.5) * 100)}%
+                </div>
               </div>
             </motion.div>
           )}
@@ -140,8 +307,8 @@ export default function IncidentDetailPage() {
             </motion.div>
           )}
 
-          {/* Safety Check (Mocked for Now) */}
-          {true && (
+          {/* Safety Check */}
+          {fix && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -167,27 +334,31 @@ export default function IncidentDetailPage() {
                       <path
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
-                        stroke={"#22c55e"}
+                        stroke={fix.safety_score === "SAFE" ? "#22c55e" : fix.safety_score === "BLOCKED" ? "#ef4444" : "#eab308"}
                         strokeWidth="2.5"
-                        strokeDasharray={`92, 100`}
+                        strokeDasharray={`${Math.round((fix.confidence || 0.5) * 100)}, 100`}
                         strokeLinecap="round"
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-sm font-semibold text-text-primary font-mono">
-                        92%
+                        {Math.round((fix.confidence || 0.5) * 100)}%
                       </span>
                     </div>
                   </div>
                   <div>
                     <p className={cn(
                       "text-sm font-medium",
-                      "text-status-success"
+                      fix.safety_score === "SAFE" ? "text-status-success" :
+                      fix.safety_score === "BLOCKED" ? "text-red-400" :
+                      "text-yellow-400"
                     )}>
-                      Safe to deploy
+                      {fix.safety_score === "SAFE" ? "Safe to deploy" :
+                       fix.safety_score === "BLOCKED" ? "Fix blocked — manual review required" :
+                       "Review required before deploying"}
                     </p>
                     <p className="text-xs text-text-muted mt-0.5">
-                      Automated safety analysis of the proposed fix
+                      AI safety analysis powered by {fix.model_used || "Groq"}
                     </p>
                   </div>
                 </div>
@@ -214,8 +385,44 @@ export default function IncidentDetailPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
+              className="bg-bg-surface border border-memory-primary/30 rounded-xl overflow-hidden"
             >
-              <MemoryContextPanel context={null} />
+              <div className="px-5 py-4 flex items-center gap-2 border-b border-border-faint bg-memory-primary/5">
+                <Brain className="w-4 h-4 text-memory-primary" />
+                <h2 className="text-sm font-semibold text-text-primary">
+                  Memory Context
+                </h2>
+                <span className="text-2xs text-memory-primary font-mono ml-auto">Integration Layer</span>
+              </div>
+              <div className="p-4 space-y-3">
+                {memoryCtx ? (
+                  <>
+                    <p className="text-xs text-text-secondary">{memoryCtx.insight}</p>
+                    {memoryCtx.related_discussions?.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {memoryCtx.related_discussions.map((d: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2 p-2 bg-bg-elevated rounded-lg">
+                            <div className="w-1.5 h-1.5 rounded-full bg-memory-primary mt-1.5 shrink-0" />
+                            <p className="text-2xs text-text-secondary font-mono">{d}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-2xs text-text-muted italic">No past discussions found for this error.</p>
+                    )}
+                    <p className="text-2xs text-text-muted font-mono">Query: &quot;{memoryCtx.query}&quot;</p>
+                  </>
+                ) : isProcessing ? (
+                  <div className="flex items-center gap-2 py-4 justify-center">
+                    <RefreshCw className="w-3.5 h-3.5 text-memory-primary animate-spin" />
+                    <span className="text-xs text-text-muted">Querying team memory...</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-text-muted py-4 text-center">
+                    Memory context will appear here once the AI pipeline processes this incident.
+                  </p>
+                )}
+              </div>
             </motion.div>
 
             {/* Action Buttons */}
@@ -225,7 +432,6 @@ export default function IncidentDetailPage() {
               transition={{ delay: 0.25 }}
               className="bg-bg-surface border border-border-faint rounded-xl p-4 space-y-2.5"
             >
-              {/* Primary action */}
               {isPRReady && incident.pr_url ? (
                 <a
                   href={incident.pr_url}
@@ -238,27 +444,35 @@ export default function IncidentDetailPage() {
                 </a>
               ) : (
                 <button
-                  disabled={isBlocked || isFailed || isTerminal}
+                  onClick={() => handleStatusUpdate("pr_created")}
+                  disabled={isBlocked || isFailed || isTerminal || isProcessing || actionLoading}
                   className={cn(
                     "flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
-                    !isBlocked && !isFailed && !isTerminal
+                    (!isBlocked && !isFailed && !isTerminal && !isProcessing && !actionLoading)
                       ? "bg-autofix-primary text-bg-base hover:bg-autofix-hover"
                       : "bg-bg-elevated text-text-muted cursor-not-allowed"
                   )}
                 >
                   <CheckCircle className="w-4 h-4" />
-                  Approve Fix → Create PR
+                  {actionLoading ? "Processing..." : isProcessing ? "AI Pipeline Running..." : "Approve Fix → Create PR"}
                 </button>
               )}
 
-              {/* Secondary actions */}
               <div className="flex gap-2">
-                <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs text-text-secondary bg-bg-elevated hover:bg-bg-hover transition-colors">
+                <button 
+                  onClick={() => handleStatusUpdate("dismissed")}
+                  disabled={actionLoading || isTerminal}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs text-text-secondary bg-bg-elevated hover:bg-bg-hover transition-colors disabled:opacity-50"
+                >
                   <XCircle className="w-3.5 h-3.5" />
                   Dismiss
                 </button>
-                {isFailed && (
-                  <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs text-text-secondary bg-bg-elevated hover:bg-bg-hover transition-colors">
+                {(isFailed || isTerminal) && (
+                  <button 
+                    onClick={handleRetry}
+                    disabled={actionLoading}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs text-text-secondary bg-bg-elevated hover:bg-bg-hover transition-colors disabled:opacity-50"
+                  >
                     <RotateCcw className="w-3.5 h-3.5" />
                     Retry
                   </button>
@@ -280,7 +494,7 @@ export default function IncidentDetailPage() {
                 {[
                   { label: "Severity", value: <SeverityBadge severity={incident.severity} /> },
                   { label: "Status", value: <StatusBadge status={incident.status} /> },
-                  { label: "Repository", value: <span className="font-mono text-text-code text-2xs">{incident.repository_id || "None"}</span> },
+                  { label: "Repository", value: <span className="font-mono text-text-code text-2xs">{repoName || incident.repository_id || "None"}</span> },
                   { label: "Environment", value: <span className="font-mono text-text-code text-2xs">{incident.environment}</span> },
                   { label: "Source", value: <span className="text-2xs text-text-secondary capitalize">{incident.source}</span> },
                   { label: "Received", value: <span className="font-mono text-2xs text-text-secondary">{formatDate(incident.received_at)}</span> },

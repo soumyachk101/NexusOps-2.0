@@ -129,4 +129,19 @@ class WorkspaceService:
         return row
 
 
+    async def get_or_create_default(
+        self, db: AsyncSession, user: "User"
+    ) -> Workspace:
+        """If the user has no workspaces, auto-create a default one."""
+        workspaces = await self.list_user_workspaces(db, user.id)
+        if workspaces:
+            return workspaces[0]
+
+        name = f"{user.name or 'My'}'s Team"
+        slug = f"team-{str(user.id)[:8]}"
+        ws = await self.create_workspace(db, name, slug, user.id)
+        await db.commit()
+        return ws
+
+
 workspace_service = WorkspaceService()

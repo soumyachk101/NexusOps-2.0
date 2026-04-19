@@ -97,6 +97,8 @@ class AuthService:
         github_id: str | None = None,
         github_username: str | None = None,
         github_access_token: str | None = None,
+        google_id: str | None = None,
+        google_access_token: str | None = None,
         avatar_url: str | None = None,
     ) -> User:
         user = User(
@@ -107,45 +109,94 @@ class AuthService:
             github_id=github_id,
             github_username=github_username,
             github_access_token=github_access_token,
+            google_id=google_id,
+            google_access_token=google_access_token,
             avatar_url=avatar_url,
         )
         db.add(user)
         await db.flush()
         return user
 
+    # ── Google OAuth ──
+    async def exchange_google_token(self, access_token: str) -> dict:
+        """Fetch Google user info using the access token."""
+        async with httpx.AsyncClient() as client:
+            user_resp = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if user_resp.status_code != 200:
+                raise ValueError(f"Google OAuth failed: {user_resp.text}")
+            
+            google_user = user_resp.json()
+            return {
+                "access_token": access_token,
+                "google_id": str(google_user["sub"]),
+                "email": google_user.get("email"),
+                "name": google_user.get("name"),
+                "avatar_url": google_user.get("picture"),
+            }
+
+    async def get_or_create_google_user(self, db: AsyncSession, google_data: dict) -> User:
+        """Find user by Google ID or email, or create new one."""
+        # Check by Google ID
+        result = await db.execute(
+            select(User).where(User.google_id == google_data["google_id"])
+        )
+        user = result.scalar_one_or_none()
+        if user:
+            # Update token
+            user.google_access_token = google_data["access_token"]
+            user.avatar_url = google_data.get("avatar_url")
+            await db.flush()
+            return user
+
+        # Check by email
+        if google_data.get("email"):
+            result = await db.execute(
+                select(User).where(User.email == google_data["email"])
+            )
+            user = result.scalar_one_or_none()
+            if user:
+                # Link Google to existing account
+                user.google_id = google_data["google_id"]
+                user.google_access_token = google_data["access_token"]
+                user.avatar_url = google_data.get("avatar_url")
+                if user.provider == "credentials":
+                    user.provider = "google"
+                await db.flush()
+                return user
+
+        # Create new user
+        return await self.create_user(
+            db,
+            email=google_data["email"],
+            name=google_data["name"],
+            provider="google",
+            avatar_url=google_data.get("avatar_url"),
+        )
+        
     # ── GitHub OAuth ──
 
-    async def exchange_github_code(self, code: str) -> dict:
-        """Exchange GitHub OAuth code for access token + user info."""
+    async def exchange_github_token(self, access_token: str) -> dict:
+        """Fetch GitHub user info using the provided access token."""
         async with httpx.AsyncClient() as client:
-            # Step 1: Exchange code for token
-            token_resp = await client.post(
-                "https://github.com/login/oauth/access_token",
-                json={
-                    "client_id": settings.GITHUB_CLIENT_ID,
-                    "client_secret": settings.GITHUB_CLIENT_SECRET,
-                    "code": code,
-                },
-                headers={"Accept": "application/json"},
-            )
-            token_data = token_resp.json()
-            access_token = token_data.get("access_token")
-            if not access_token:
-                raise ValueError(f"GitHub OAuth failed: {token_data}")
-
-            # Step 2: Fetch user info
+            # Step 1: Fetch user info
             user_resp = await client.get(
                 "https://api.github.com/user",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
+            if user_resp.status_code != 200:
+                raise ValueError(f"GitHub OAuth failed: {user_resp.text}")
+            
             github_user = user_resp.json()
 
-            # Step 3: Fetch primary email
+            # Step 2: Fetch primary email
             email_resp = await client.get(
                 "https://api.github.com/user/emails",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
-            emails = email_resp.json()
+            emails = email_resp.json() if email_resp.status_code == 200 else []
             primary_email = next(
                 (e["email"] for e in emails if e.get("primary")),
                 github_user.get("email"),

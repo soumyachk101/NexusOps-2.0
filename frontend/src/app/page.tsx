@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import Link from "next/link";
 import { Shield, Zap, GitPullRequest, Database, TerminalSquare } from "lucide-react";
 import { DitherShader } from "@/components/ui/dither-shader";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { RevealText } from "@/components/ui/RevealText";
 import {
   Accordion,
   AccordionContent,
@@ -14,26 +15,39 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+import { AutoFixSimulator } from "@/components/landing/widgets/AutoFixSimulator";
+import { SystemHealthRadar } from "@/components/landing/widgets/SystemHealthRadar";
+import { DeepMemoryNetwork } from "@/components/landing/widgets/DeepMemoryNetwork";
+import { OperationalTerminal } from "@/components/landing/widgets/OperationalTerminal";
+
 const features = [
   {
     name: "AI-Powered AutoFix",
     description: "Automatically detect and suggest fixes for incidents before they impact users.",
     icon: Zap,
+    component: AutoFixSimulator,
+    size: "lg"
   },
   {
     name: "Deep Memory Context",
-    description: "NexusOps remembers every PR, bug, and architectural decision, providing unparalleled context.",
+    description: "NexusOps remembers every PR, bug, and architectural decision.",
     icon: Database,
+    component: DeepMemoryNetwork,
+    size: "sm"
   },
   {
     name: "Intelligent Triage",
     description: "Prioritize issues instantly using our proprietary severity scoring algorithm.",
     icon: Shield,
+    component: SystemHealthRadar,
+    size: "sm"
   },
   {
-    name: "Seamless Version Control",
-    description: "Deep integration with GitHub to automatically analyze commits and PRs in real-time.",
-    icon: GitPullRequest,
+    name: "Operational Feed",
+    description: "Real-time visibility into the system's decision-making process.",
+    icon: TerminalSquare,
+    component: OperationalTerminal,
+    size: "md"
   },
 ];
 
@@ -55,67 +69,45 @@ const faqs = [
 export default function LandingPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Parallax setup
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"]
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
   });
   
-  const yHeroText = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
-  const yHeroShader = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
-  const opacityShader = useTransform(scrollYProgress, [0, 0.5], [0.4, 0]);
+  // Parallax setup for background
+  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
+  const yHeroText = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
+  const opacityShader = useTransform(scrollYProgress, [0, 0.5], [1, 0.2]);
 
   return (
     <div className="min-h-screen bg-bg-base overflow-x-hidden selection:bg-nexus-primary/30 selection:text-white">
+      
+      {/* Scroll Progress Bar */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-nexus-primary z-[100] origin-left"
+        style={{ scaleX }}
+      />
       
       <Navbar />
 
       {/* Hero Section */}
       <div 
         ref={containerRef}
-        className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden"
+        className="relative min-h-[90vh] flex items-center justify-center pt-20 overflow-hidden"
       >
-        {/* Parallax Shader Background */}
+        {/* Sophisticated Background Aura */}
         <motion.div 
-          style={{ y: yHeroShader, opacity: opacityShader }}
+          style={{ opacity: opacityShader, y: yBg }}
           className="absolute inset-0 z-0 overflow-hidden"
         >
-          <DitherShader
-             src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=3540&auto=format&fit=crop"
-             gridSize={3}
-             ditherMode="bayer"
-             colorMode="duotone"
-             primaryColor="#080a0f"
-             secondaryColor="#1f4b8f"
-             animated={true}
-             animationSpeed={0.015}
-             className="w-full h-full object-cover mix-blend-screen scale-110"
-          />
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#C9B6FF]/15 blur-[120px] rounded-full animate-pulse" />
+          <div className="absolute bottom-[0%] right-[-10%] w-[50%] h-[50%] bg-[#A7C6FF]/15 blur-[120px] rounded-full" />
         </motion.div>
         
-        {/* Gradient Fade to connect sections smoothly */}
-        <div className="absolute inset-0 bg-gradient-to-t from-bg-base via-bg-base/60 to-transparent z-0 pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-nexus-primary/5 via-transparent to-transparent z-0 pointer-events-none" />
-
-        {/* HUD Elements (Heads Up Display) */}
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          <div className="absolute top-1/4 left-8 text-nexus-primary/30 font-playfair text-xs tracking-widest hidden lg:block">
-            <motion.div animate={{ opacity: [0.3, 0.8, 0.3] }} transition={{ duration: 3, repeat: Infinity }}>
-              SYS.MONITOR // ACTIVE
-            </motion.div>
-            <div className="mt-2">LATENCY: 12ms</div>
-            <div>NODES: 3,492</div>
-          </div>
-          <div className="absolute bottom-1/4 right-8 text-nexus-primary/30 font-playfair text-xs tracking-widest hidden lg:block text-right">
-            <div>SECURE LINK // ESTABLISHED</div>
-            <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 1 }} className="mt-2">
-              QUANTUM ENCRYPTION: ON
-            </motion.div>
-          </div>
-          {/* Target Reticles */}
-          <div className="absolute top-1/2 left-1/4 w-8 h-8 border-l border-t border-nexus-primary/20 -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-1/3 right-1/4 w-8 h-8 border-r border-b border-nexus-primary/20 translate-x-1/2 translate-y-1/2" />
-        </div>
+        {/* Gradient Fade */}
+        <div className="absolute inset-0 bg-bg-base/40 z-0 pointer-events-none" />
         
         {/* Hero Content - Asymmetric & Unique */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full mt-20">
@@ -126,39 +118,35 @@ export default function LandingPage() {
             {/* Left Side: Typography */}
             <div className="flex-1 text-center lg:text-left">
               <motion.div
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-sm bg-nexus-primary/10 border-l-2 border-nexus-primary text-nexus-primary text-xs font-playfair tracking-widest mb-8">
-                  <span className="w-1.5 h-1.5 bg-nexus-primary animate-pulse" />
-                  NEXUS_PROTOCOL_V2
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-text-secondary text-[11px] font-medium tracking-wide mb-8">
+                  <span className="w-1.5 h-1.5 bg-nexus-primary rounded-full animate-pulse" />
+                  Nexus v2.4 Now Available
                 </div>
               </motion.div>
 
               <div className="overflow-hidden">
-                <motion.h1 
-                  initial={{ opacity: 0, y: 100 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-5xl sm:text-6xl lg:text-[5.5rem] font-playfair font-bold text-white tracking-widest leading-[1.1] mb-6 drop-shadow-2xl uppercase"
-                >
-                  SYSTEM 
-                  <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-b from-blue-400 via-nexus-primary to-purple-600">
-                    OVERRIDE
-                  </span>
-                </motion.h1>
+                <RevealText>
+                  <motion.h1 
+                    className="text-5xl sm:text-6xl lg:text-7xl font-semibold text-white tracking-tight leading-[1.1] mb-6"
+                  >
+                    Automated Incident 
+                    <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-nexus-primary to-blue-400">
+                      Intelligence.
+                    </span>
+                  </motion.h1>
+                </RevealText>
               </div>
 
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 1, delay: 0.5 }}
-                className="mt-6 max-w-xl mx-auto lg:mx-0 text-lg sm:text-xl font-display text-text-secondary leading-relaxed mb-10 border-l border-white/10 pl-6"
-              >
-                The omniscient AI command center. We merge deep codebase memory with hyper-fast algorithmic triage to neutralize production incidents before they escalate.
-              </motion.p>
+              <RevealText delay={0.2}>
+                <p className="mt-6 max-w-xl mx-auto lg:mx-0 text-lg text-text-secondary leading-relaxed mb-10">
+                  Resolve production issues before they impact your users. Nexus combines deep codebase context with real-time operational metrics to automate your triage workflow.
+                </p>
+              </RevealText>
 
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -168,19 +156,15 @@ export default function LandingPage() {
               >
                 <Link
                   href="/login"
-                  className="relative group w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-sm font-playfair tracking-widest text-white bg-nexus-primary hover:bg-nexus-hover transition-all shadow-[0_0_20px_-5px_rgba(139,92,246,0.5)] border border-nexus-primary overflow-hidden"
+                  className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 text-sm font-medium text-white bg-nexus-primary hover:bg-nexus-hover transition-all rounded-lg shadow-lg shadow-nexus-primary/20"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-                  <span className="relative z-10 flex items-center gap-2">
-                    <TerminalSquare className="w-4 h-4" />
-                    BOOT SEQUENCE
-                  </span>
+                  Get Started
                 </Link>
                 <Link
                   href="#features"
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-sm font-playfair tracking-widest text-text-secondary bg-transparent border border-white/20 hover:text-white hover:border-white/50 hover:bg-white/5 transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 text-sm font-medium text-text-primary bg-white/5 border border-white/10 hover:bg-white/10 transition-all rounded-lg"
                 >
-                  READ LOGS
+                  View Documentation
                 </Link>
               </motion.div>
             </div>
@@ -299,41 +283,59 @@ export default function LandingPage() {
             className="text-left mb-20 flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/10 pb-10"
           >
             <div>
-              <h2 className="text-3xl md:text-5xl font-playfair font-bold text-white mb-4 tracking-widest uppercase">
-                Architecture <br /><span className="text-nexus-primary">Specs</span>
+              <h2 className="text-3xl font-semibold text-white mb-4">
+                Platform Capabilities
               </h2>
             </div>
-            <p className="text-sm md:text-base font-display text-text-secondary max-w-sm md:text-right border-l md:border-l-0 md:border-r border-nexus-primary/30 pl-4 md:pl-0 md:pr-4 py-2">
+            <p className="text-sm text-text-secondary max-w-sm md:text-right border-l md:border-l-0 md:border-r border-white/10 pl-4 md:pl-0 md:pr-4 py-2">
               Everything you need to resolve incidents faster and maintain high-availability systems, packaged in a meticulously crafted interface.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-6">
             {features.map((feature, index) => (
               <motion.div
                 key={feature.name}
-                initial={{ opacity: 0, y: 50, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.6, delay: index * 0.15, type: "spring", stiffness: 100 }}
-                className="p-8 bg-bg-surface border-t border-nexus-primary/20 border-l border-r border-b border-white/5 hover:border-nexus-primary/50 transition-all duration-300 group relative overflow-hidden"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ 
+                    duration: 0.8, 
+                    delay: index * 0.1, 
+                    ease: [0.33, 1, 0.68, 1] 
+                }}
+                className={`
+                  p-1 bg-bg-surface border border-white/5 hover:border-nexus-primary/50 transition-all duration-300 group relative overflow-hidden flex flex-col
+                  ${feature.size === 'lg' ? 'md:col-span-6 lg:col-span-8' : ''}
+                  ${feature.size === 'md' ? 'md:col-span-3 lg:col-span-4' : ''}
+                  ${feature.size === 'sm' ? 'md:col-span-3 lg:col-span-4' : ''}
+                `}
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-nexus-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 
-                <div className="relative z-10">
-                  <div className="flex justify-between items-start mb-12">
-                    <div className="w-12 h-12 border border-white/10 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:border-nexus-primary/40 group-hover:bg-nexus-primary/10 transition-all duration-300">
-                      <feature.icon className="w-5 h-5 text-nexus-primary/80 group-hover:text-nexus-primary transition-colors" />
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="w-10 h-10 border border-white/10 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:border-nexus-primary/40 group-hover:bg-nexus-primary/10 transition-all duration-300">
+                        <feature.icon className="w-4 h-4 text-nexus-primary/80 group-hover:text-nexus-primary transition-colors" />
+                      </div>
+                      <span className="text-text-muted font-playfair text-[10px] tracking-widest opacity-50 group-hover:opacity-100 transition-opacity">
+                        MODULE_0{index + 1}
+                      </span>
                     </div>
-                    <span className="text-text-muted font-playfair text-xs tracking-widest opacity-50 group-hover:opacity-100 transition-opacity">
-                      0{index + 1}
-                    </span>
+                    
+                    <h3 className="text-base font-playfair font-bold text-white mb-2 tracking-wider uppercase group-hover:text-nexus-primary transition-colors">
+                      {feature.name}
+                    </h3>
+                    <p className="text-xs font-display text-text-secondary leading-relaxed mb-6">
+                      {feature.description}
+                    </p>
+                    
+                    {/* Widget Display Area */}
+                    <div className="mt-auto flex-1 rounded-lg overflow-hidden border border-white/5 bg-black/20">
+                      <feature.component />
+                    </div>
                   </div>
-                  
-                  <h3 className="text-lg font-playfair font-bold text-white mb-4 tracking-wider uppercase group-hover:text-nexus-primary transition-colors">{feature.name}</h3>
-                  <p className="text-sm font-display text-text-secondary leading-relaxed border-t border-white/5 pt-4">
-                    {feature.description}
-                  </p>
                 </div>
               </motion.div>
             ))}

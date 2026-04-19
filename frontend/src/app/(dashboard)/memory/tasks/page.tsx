@@ -8,6 +8,7 @@ import {
   ArrowRightCircle,
   ArrowDownCircle,
   ExternalLink,
+  CheckSquare,
 } from "lucide-react";
 
 const priorityConfig = {
@@ -63,6 +64,15 @@ export default function MemoryTasksPage() {
       </div>
 
       {/* Task List */}
+      {tasks.length === 0 ? (
+        <div className="p-12 text-center border border-dashed border-border-default rounded-2xl">
+          <CheckSquare className="w-10 h-10 text-text-muted mx-auto mb-3" />
+          <p className="text-text-secondary font-medium">No tasks detected yet</p>
+          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+            Tasks will appear here automatically as your team discusses action items in connected sources.
+          </p>
+        </div>
+      ) : (
       <div className="space-y-3">
         {tasks.map((task, index) => {
           const priority = priorityConfig[task.priority as keyof typeof priorityConfig] || priorityConfig.medium;
@@ -100,11 +110,13 @@ export default function MemoryTasksPage() {
               </div>
 
               {/* Source message */}
+              {task.source_preview && (
               <div className="ml-8 bg-bg-elevated rounded-lg p-3 border border-border-faint">
                 <p className="text-xs text-text-secondary italic font-mono leading-relaxed">
                   &ldquo;{task.source_preview}&rdquo;
                 </p>
               </div>
+              )}
 
               {/* Footer */}
               <div className="ml-8 mt-3 flex items-center justify-between text-2xs text-text-muted">
@@ -127,6 +139,7 @@ export default function MemoryTasksPage() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

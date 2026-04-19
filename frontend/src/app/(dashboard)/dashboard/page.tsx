@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import { UnifiedStats } from "@/components/dashboard/UnifiedStats";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { IncidentCard } from "@/components/autofix/IncidentCard";
-import { mockDashboardStats, mockActivityFeed, mockChatMessages } from "@/lib/mock-data";
+import { mockDashboardStats, mockActivityFeed } from "@/lib/mock-data";
 import { Search, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { autofixApi, workspaceApi, Incident } from "@/lib/api";
+import { autofixApi, workspaceApi } from "@/lib/api";
+import type { Incident } from "@/lib/types";
 
 export default function DashboardPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     const loadData = async () => {
@@ -21,7 +23,9 @@ export default function DashboardPage() {
           setIncidents(data);
         }
       } catch (err) {
-        console.error("Failed to load dashboard data:", err);
+        console.warn("Dashboard data load failed (backend may be offline):", err);
+      } finally {
+        setLoading(false);
       }
     };
     loadData();
@@ -30,8 +34,6 @@ export default function DashboardPage() {
   const activeIncidents = incidents.filter(
     (i) => !["resolved", "dismissed", "pr_created"].includes(i.status)
   ).slice(0, 3); // Show top 3 only
-
-  const recentQueries = mockChatMessages.filter((m) => m.role === "user");
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -87,13 +89,17 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="p-3 space-y-2">
-              {activeIncidents.length > 0 ? (
+              {loading ? (
+                <div className="py-8 text-center text-text-muted text-sm animate-pulse">
+                  Loading incidents...
+                </div>
+              ) : activeIncidents.length > 0 ? (
                 activeIncidents.map((incident, i) => (
                   <IncidentCard key={incident.id} incident={incident} index={i} />
                 ))
               ) : (
                 <div className="py-8 text-center text-text-muted text-sm">
-                  No active incidents
+                  No active incidents — all systems nominal ✓
                 </div>
               )}
             </div>
@@ -123,23 +129,6 @@ export default function DashboardPage() {
                 <Search className="w-4 h-4 text-memory-primary/50" />
                 Ask your team&apos;s memory...
               </Link>
-              {/* Recent queries */}
-              {recentQueries.length > 0 && (
-                <div className="mt-3 space-y-1.5">
-                  <p className="text-2xs text-text-muted uppercase tracking-wider font-medium px-1">
-                    Recent
-                  </p>
-                  {recentQueries.map((q) => (
-                    <Link
-                      key={q.id}
-                      href="/memory/ask"
-                      className="block px-3 py-2 rounded-lg text-xs text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors truncate"
-                    >
-                      &ldquo;{q.content}&rdquo;
-                    </Link>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>

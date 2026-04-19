@@ -2,10 +2,12 @@ import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
+import GoogleProvider from "next-auth/providers/google";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET || "nexusops-dev-fallback-secret",
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -53,6 +55,14 @@ const authOptions: NextAuthOptions = {
           }),
         ]
       : []),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
   ],
   callbacks: {
     async signIn({ user, account }) {
@@ -71,6 +81,24 @@ const authOptions: NextAuthOptions = {
           }
         } catch (e) {
           console.error("GitHub backend sync error:", e);
+        }
+      }
+
+      // For Google OAuth: sync with backend using token
+      if (account?.provider === "google" && account.access_token) {
+        try {
+          const res = await fetch(
+            `${API_BASE}/api/v1/auth/google/callback?token=${account.access_token}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const u = user as unknown as Record<string, unknown>;
+            u.accessToken = data.tokens.access_token;
+            u.refreshToken = data.tokens.refresh_token;
+            u.backendId = data.user.id;
+          }
+        } catch (e) {
+          console.error("Google backend sync error:", e);
         }
       }
       return true;
@@ -101,10 +129,12 @@ const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/login",
+    error: "/login",
   },
   session: {
     strategy: "jwt",
   },
+  debug: process.env.NODE_ENV === "development",
 };
 
 const handler = NextAuth(authOptions);

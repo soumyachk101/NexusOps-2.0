@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { SmoothScrollProvider } from "@/components/providers/SmoothScrollProvider";
 
 const inter = Inter({
+// ... (rest of font config)
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
@@ -39,9 +41,11 @@ export default function RootLayout({
       <body
         className="font-sans antialiased bg-bg-base text-text-primary selection:bg-nexus-primary/30 selection:text-white"
       >
-        <Providers>
-          {children}
-        </Providers>
+        <SmoothScrollProvider>
+          <Providers>
+            {children}
+          </Providers>
+        </SmoothScrollProvider>
       </body>
     </html>
   );

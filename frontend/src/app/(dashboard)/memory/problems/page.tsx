@@ -46,6 +46,15 @@ export default function MemoryProblemsPage() {
         </p>
       </div>
 
+      {problems.length === 0 ? (
+        <div className="p-12 text-center border border-dashed border-border-default rounded-2xl">
+          <AlertTriangle className="w-10 h-10 text-text-muted mx-auto mb-3" />
+          <p className="text-text-secondary font-medium">No recurring problems detected</p>
+          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+            Problems will surface here when recurring issues are identified across team discussions.
+          </p>
+        </div>
+      ) : (
       <div className="space-y-3">
         {problems.map((problem, index) => {
           const sev = (problem.severity || 'medium') as keyof typeof severityColors;
@@ -74,6 +83,7 @@ export default function MemoryProblemsPage() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

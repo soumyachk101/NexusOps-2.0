@@ -60,9 +60,10 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 @router.get("/github/callback", response_model=AuthResponse)
 async def github_callback(code: str, db: AsyncSession = Depends(get_db)):
-    """Handle GitHub OAuth callback — exchange code for token, create/login user."""
+    """Handle GitHub OAuth callback. The frontend passes the access_token as 'code'."""
     try:
-        github_data = await auth_service.exchange_github_code(code)
+        # Note: The NextAuth frontend passes the access token in the 'code' query parameter
+        github_data = await auth_service.exchange_github_token(code)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,6 +71,25 @@ async def github_callback(code: str, db: AsyncSession = Depends(get_db)):
         )
 
     user = await auth_service.get_or_create_github_user(db, github_data)
+    tokens = auth_service.create_tokens(user)
+    return AuthResponse(
+        user=UserResponse.model_validate(user),
+        tokens=TokenResponse(**tokens),
+    )
+
+
+@router.get("/google/callback", response_model=AuthResponse)
+async def google_callback(token: str, db: AsyncSession = Depends(get_db)):
+    """Handle Google OAuth callback — use access token to get profile and login."""
+    try:
+        google_data = await auth_service.exchange_google_token(token)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Google OAuth failed: {str(e)}",
+        )
+
+    user = await auth_service.get_or_create_google_user(db, google_data)
     tokens = auth_service.create_tokens(user)
     return AuthResponse(
         user=UserResponse.model_validate(user),

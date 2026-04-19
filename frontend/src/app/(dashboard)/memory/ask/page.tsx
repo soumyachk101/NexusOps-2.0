@@ -4,13 +4,21 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ChatInput } from "@/components/memory/ChatInput";
 import { AnswerCard } from "@/components/memory/AnswerCard";
-import { mockChatMessages } from "@/lib/mock-data";
 import { Brain, Sparkles } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
-import { memoryApi } from "@/lib/api";
+import { memoryApi, workspaceApi } from "@/lib/api";
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources?: Array<Record<string, unknown>>;
+  confidence?: number;
+  timestamp?: string;
+}
 
 export default function MemoryAskPage() {
-  const [messages, setMessages] = useState(mockChatMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
@@ -20,15 +28,16 @@ export default function MemoryAskPage() {
         if (res.workspaces && res.workspaces.length > 0) {
           setWorkspaceId(res.workspaces[0].id);
         }
-      });
+      })
+      .catch(err => console.warn("Failed to load workspace:", err));
   }, []);
 
   const handleSubmit = (message: string) => {
     if (!workspaceId) return;
 
-    const newUserMsg = {
+    const newUserMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
-      role: "user" as const,
+      role: "user",
       content: message,
       timestamp: new Date().toISOString(),
     };
@@ -38,18 +47,25 @@ export default function MemoryAskPage() {
 
     memoryApi.query(workspaceId, message)
       .then((res) => {
-        const aiResponse = {
+        const aiResponse: ChatMessage = {
           id: `msg-${Date.now() + 1}`,
-          role: "assistant" as const,
+          role: "assistant",
           content: res.answer,
-          sources: res.sources,
-          confidence: 0.9, // Default confidence since mock doesn't provide it
+          sources: res.sources as unknown as Array<Record<string, unknown>>,
+          confidence: 0.9,
           timestamp: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, aiResponse]);
         setIsTyping(false);
       })
       .catch(() => {
+        const errorResponse: ChatMessage = {
+          id: `msg-${Date.now() + 1}`,
+          role: "assistant",
+          content: "I'm having trouble connecting to the memory service right now. Please make sure the backend is running.",
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, errorResponse]);
         setIsTyping(false);
       });
   };
@@ -120,7 +136,7 @@ export default function MemoryAskPage() {
                 >
                   <p className="text-sm text-text-primary">{msg.content}</p>
                   <p className="text-2xs text-text-muted mt-1.5 text-right font-mono">
-                    {formatRelativeTime(msg.timestamp)}
+                    {msg.timestamp ? formatRelativeTime(msg.timestamp) : "just now"}
                   </p>
                 </motion.div>
               ) : (

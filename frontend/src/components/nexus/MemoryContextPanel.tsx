@@ -2,11 +2,16 @@
 
 import { motion } from "framer-motion";
 import { Brain } from "lucide-react";
-import { MemoryContext } from "@/lib/types";
-import { format } from "date-fns";
+
+interface MemoryContextData {
+  related_discussions: string[];
+  query: string;
+  matches_found: number;
+  insight: string;
+}
 
 interface MemoryContextPanelProps {
-  context: MemoryContext | null | undefined;
+  context: MemoryContextData | null | undefined;
   loading?: boolean;
 }
 
@@ -29,7 +34,7 @@ function SkeletonPanel() {
 export function MemoryContextPanel({ context, loading }: MemoryContextPanelProps) {
   if (loading) return <SkeletonPanel />;
 
-  if (!context?.found) {
+  if (!context || context.matches_found === 0) {
     return (
       <div className="border border-border-faint rounded-xl p-4">
         <div className="flex items-center gap-2 text-text-muted">
@@ -45,7 +50,7 @@ export function MemoryContextPanel({ context, loading }: MemoryContextPanelProps
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4 }}
-      className="bg-nexus-muted border border-nexus-border rounded-xl p-5 border-l-[3px] border-l-nexus-primary animate-nexus-pulse glow-nexus"
+      className="bg-nexus-muted border border-nexus-border rounded-xl p-5 border-l-[3px] border-l-nexus-primary"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
@@ -64,33 +69,21 @@ export function MemoryContextPanel({ context, loading }: MemoryContextPanelProps
 
       {/* Summary */}
       <p className="text-sm text-text-primary/90 leading-relaxed mb-4">
-        {context.summary}
+        {context.insight}
       </p>
 
       {/* Memory Chunks */}
       <div className="space-y-2.5">
-        {context.chunks.map((chunk, i) => (
+        {context.related_discussions.map((discussion: string, i: number) => (
           <motion.div
-            key={chunk.id}
+            key={i}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.2 + i * 0.1 }}
             className="bg-bg-elevated border border-border-faint rounded-lg p-3.5"
           >
-            {/* Source label */}
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xs font-mono text-text-secondary">
-                {chunk.source_type} · {format(new Date(chunk.timestamp), "dd MMM")} · {chunk.author}
-              </span>
-              {chunk.similarity_score && (
-                <span className="text-2xs font-mono text-nexus-primary/70">
-                  {Math.round(chunk.similarity_score * 100)}% match
-                </span>
-              )}
-            </div>
-            {/* Chunk text */}
-            <p className="text-sm text-text-primary/80 italic leading-relaxed">
-              &ldquo;{chunk.text}&rdquo;
+            <p className="text-sm text-text-primary/80 leading-relaxed">
+              {discussion}
             </p>
           </motion.div>
         ))}

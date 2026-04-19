@@ -23,11 +23,30 @@ async def connect_repo(
     if not is_member:
         raise HTTPException(status_code=403, detail="Not a member of this workspace")
 
+    name = body.name
+    default_branch = body.default_branch
+    language = None
+    is_private = False
+
+    if body.github_token:
+        try:
+            from github import Github
+            g = Github(body.github_token)
+            gh_repo = g.get_repo(body.full_name)
+            name = gh_repo.name
+            default_branch = gh_repo.default_branch
+            language = gh_repo.language
+            is_private = gh_repo.private
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to access GitHub repository. Verify your token and repo name. Error: {str(e)}")
+
     repo = Repository(
         workspace_id=body.workspace_id,
-        name=body.name,
-        url=body.repo_url,
-        default_branch=body.default_branch,
+        name=name,
+        full_name=body.full_name,
+        default_branch=default_branch,
+        language=language,
+        is_private=is_private,
     )
     db.add(repo)
     await db.commit()
