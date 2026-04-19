@@ -1,134 +1,158 @@
-# 🚀 NexusOps 2.0: Next-Gen AI-Powered AIOps Platform
+<div align="center">
 
-[![NexusOps](https://img.shields.io/badge/NexusOps-AI--Powered%20AIOps-6D28D9?style=for-the-badge)](https://github.com/soumyachk101/NexusOps-2.0)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-05998B?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Groq](https://img.shields.io/badge/AI-Groq%20LLaMA%203.3-f3d122?style=for-the-badge)](https://groq.com/)
+# 🚀 NexusOps 2.0
+### **The Intelligent Command Center for Modern AIOps**
 
-**NexusOps** is an intelligent, high-performance incident management and automated remediation platform. It bridges the gap between production errors and developer resolution by combining **Real-time Ingestion**, **AI Root Cause Analysis**, and a **Team Memory Engine** to generate production-ready fixes in seconds.
+[![NexusOps](https://img.shields.io/badge/NexusOps-v2.0.4-6D28D9?style=for-the-badge&logo=shield)](https://github.com/soumyachk101/NexusOps-2.0)
+[![Backend](https://img.shields.io/badge/Backend-FastAPI-05998B?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Frontend](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![AI](https://img.shields.io/badge/Inference-Groq%20LLaMA%203.3-f3d122?style=for-the-badge)](https://groq.com/)
 
 ---
 
-## 🏗️ Architecture Overview
+![NexusOps Dashboard Mockup](/Users/soumyachakraborty/.gemini/antigravity/brain/1f8f48f3-0dae-4e7f-a999-f88902ffa43d/nexusops_dashboard_mockup_1776588378759.png)
 
-NexusOps is built on a distributed, event-driven architecture designed for speed and reliability.
+**NexusOps 2.0** is a premium, high-fidelity operational intelligence platform that transforms production chaos into actionable resolution. By merging **Real-time Event Ingestion**, **Historical Team Memory**, and **AI-Driven Remediation**, NexusOps empowers SREs to resolve complex incidents with surgical precision.
+
+</div>
+
+---
+
+## 🏗️ Architectural Core
+
+NexusOps is engineered as a distributed, event-driven ecosystem. It doesn't just process data; it understands context.
 
 ```mermaid
 graph TD
-    subgraph "External Ingestion"
-        Sentry[Sentry Webhook] --> API
-        Telegram[Telegram Bot] --> API
-        Custom[Custom Webhook] --> API
+    %% Source Ingestion
+    subgraph IngestionMesh ["Ingestion Mesh"]
+        Sentry[Sentry Webhooks]
+        Telegram[Telegram Bot API]
+        Custom[Custom Telemetry]
     end
 
-    subgraph "NexusOps Core (FastAPI)"
-        API[API Layer] --> Ingest[Ingestion Engine]
-        Ingest --> Sanitize[Data Sanitizer]
-        Sanitize --> Pipeline[AI Pipeline Controller]
+    %% Core Processing
+    subgraph Core ["NexusOps Intelligence Layer"]
+        API[Gateway / FastAPI]
+        Sanitizer[PII & Secret Sanitizer]
+        MemoryEngine[Memory Enrichment Engine]
+        Controller[Pipeline Controller]
     end
 
-    subgraph "The Integration Layer"
-        Pipeline --> Memory[Memory Engine]
-        Memory --> VectorDB[(SQLite/Vector Store)]
-        Pipeline --> Groq[Groq AI Service]
-        Groq -- llama-3.3-70b-versatile --> Pipeline
+    %% Data Stores
+    subgraph Storage ["State & Vector Fabric"]
+        DB[(PostgreSQL + pgvector)]
+        Redis[(Redis Cache & Task Queue)]
     end
 
-    subgraph "Remediation"
-        Pipeline --> FixGen[Fix Generator]
-        FixGen --> PR[GitHub Draft PR]
+    %% AI & Remediation
+    subgraph AI ["The Resolution Engine"]
+        Groq[Groq LLaMA 3.3 Inference]
+        FixGen[AutoFix Code Generator]
+        PR[GitHub Draft Pull Requests]
     end
 
-    subgraph "Frontend (Next.js 14)"
-        UI[Cinematic Dashboard] <--> API
-    end
+    %% Connections
+    IngestionMesh --> API
+    API --> Sanitizer
+    Sanitizer --> MemoryEngine
+    MemoryEngine <--> DB
+    MemoryEngine --> Controller
+    Controller <--> Redis
+    Controller --> Groq
+    Groq --> FixGen
+    FixGen --> PR
+
+    %% Styling
+    style IngestionMesh fill:#1a1a1a,stroke:#6D28D9,stroke-width:2px,color:#fff
+    style Core fill:#1a1a1a,stroke:#05998B,stroke-width:2px,color:#fff
+    style Storage fill:#1a1a1a,stroke:#3b82f6,stroke-width:2px,color:#fff
+    style AI fill:#1a1a1a,stroke:#f3d122,stroke-width:2px,color:#fff
+    style PR fill:#6D28D9,stroke:#fff,stroke-width:2px,color:#fff
 ```
 
 ---
 
-## 🛠️ Key Features
+## 🧠 Core Capabilities
 
-### 1. 🧠 Memory-Enriched AutoFix (The Showpiece)
-NexusOps doesn't just look at an error; it looks at your team's **history**. Before analyzing an incident, it queries the **Memory Engine** to find past discussions, related documentation, or previous decisions.
-*   **Contextual Awareness:** "This error was discussed in Telegram last Tuesday regarding the auth migration."
-*   **Smart Analysis:** AI combines live stack traces with memory context for deep root-cause discovery.
-
-### 2. ⚡ Lightning Fast Remediation (Powered by Groq)
-By leveraging **Groq API** and LLaMA 3.3, NexusOps generates root-cause analyses and code fixes in sub-seconds.
-*   **Automatic Sanitization:** PII and secrets are stripped locally before data ever reaches the AI.
-*   **Draft PRs:** Automatically generates GitHub Pull Requests with detailed explanations and safety scores.
-
-### 3. 🕸️ Omni-Channel Ingestion
-*   **Telegram Integration:** Directly ingest team conversations into the knowledge base.
-*   **Webhook Native:** First-class support for Sentry, GitHub Deploys, and Custom monitoring tools.
-
-### 4. 🛡️ Safety & Security First
-*   **Confidence Scoring:** Every AI fix includes a confidence score and a safety assessment (SAFE, REVIEW_REQUIRED, BLOCKED).
-*   **Data Management:** Full control over retention policies, sanitization rules, and data export.
+<table width="100%">
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🧠 Memory Engine</h3>
+      <p>A vector-based knowledge store that injects historical context into every incident. It searches past Telegram discussions, runbooks, and historical fixes to give AI the "team memory" it needs.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>⚡ AutoFix Pipeline</h3>
+      <p>Powered by <b>Groq's LLaMA 3.3</b>, the AutoFix engine performs sub-second analysis to find the hidden bug and stage a Draft PR with detailed safety scores.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🛡️ Sanitization Layer</h3>
+      <p>Local, regex-based sanitization that strips PII (emails, keys, IPs) before data ever leaves your infrastructure. Security by design.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>🕸️ Omni-Channel Ingestion</h3>
+      <p>Native support for Sentry, Telegram, and Custom Webhooks, allowing your team to monitor production from where they already work.</p>
+    </td>
+  </tr>
+</table>
 
 ---
 
-## 🌊 System Workflow
+## 🌊 The NexusOps Workflow
 
-1.  **Ingest:** An error occurs in production; Sentry sends a webhook to NexusOps.
-2.  **Sanitize:** The platform strips API keys and user emails from the stack trace.
-3.  **Enrich:** The Memory Engine searches for related documentation or past chat messages.
-4.  **Analyze:** Groq AI performs a root-cause analysis using the sanitized trace + memory context.
-5.  **Fix:** A minimal, safe code fix is generated.
-6.  **Remediate:** A Draft PR is created on GitHub, and the team is notified via the Cinematic Dashboard.
+> [!TIP]
+> **NexusOps follows a "Human-in-the-Loop" philosophy.** The AI analyzes and stages, but the human SRE always makes the final call.
+
+1. **Ingest**: A production error triggers a Sentry webhook.
+2. **Enrich**: The Memory Engine injects historical context into the incident report.
+3. **Analyze**: Groq AI generates a root cause analysis in **< 500ms**.
+4. **Draft**: A code fix is generated and staged as a **GitHub Draft PR**.
+5. **Notify**: The team is alerted via the **Cinematic Dashboard** and Telegram.
 
 ---
 
 ## 💻 Tech Stack
 
-*   **Frontend:** Next.js 14 (App Router), Tailwind CSS, Framer Motion, Lucide React.
-*   **Backend:** FastAPI (Python 3.12), SQLAlchemy, Uvicorn.
-*   **Database:** SQLite (with migration paths to PostgreSQL).
-*   **AI Inference:** Groq Cloud (LLaMA 3.3 70B Versatile).
-*   **Authentication:** NextAuth.js (GitHub & Google OAuth).
+- **Frontend**: Next.js 14 (App Router), Framer Motion, Tailwind CSS, Shadcn/UI.
+- **Backend**: Python 3.12, FastAPI, SQLAlchemy (Async), Celery/Redis.
+- **Storage**: PostgreSQL with `pgvector` for semantic search.
+- **AI**: Groq API (LLaMA 3.3 70B Versatile).
 
 ---
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- Python 3.12+
-- Node.js 18+
-- Groq API Key
+### Quick Start (Docker)
+The fastest way to experience NexusOps 2.0 is via Docker Compose:
 
-### Installation
+```bash
+docker-compose up --build
+```
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/soumyachk101/NexusOps-2.0.git
-    cd NexusOps-2.0
-    ```
+### Manual Installation
 
-2.  **Backend Setup:**
-    ```bash
-    cd backend
-    python -m venv venv
-    source venv/bin/activate  # Windows: venv\Scripts\activate
-    pip install -r requirements.txt
-    # Create .env based on .env.example
-    uvicorn app.main:app --reload
-    ```
+**1. Clone & Environment**
+```bash
+git clone https://github.com/soumyachk101/NexusOps-2.0.git
+cd NexusOps-2.0
+cp backend/.env.example backend/.env
+cp frontend/.env.local frontend/.env
+```
 
-3.  **Frontend Setup:**
-    ```bash
-    cd frontend
-    npm install
-    # Create .env.local based on .env.example
-    npm run dev
-    ```
+**2. Backend Setup**
+```bash
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
 
 ---
 
-## 📄 License
+## 📄 License & Attribution
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. Built  for the Next Generation of SREs by **Soumya Chakraborty**.
 
----
-
-**Built for the Next Generation of SREs.**
-[GitHub Showcase](https://github.com/soumyachk101/NexusOps-2.0)
+[Showcase Dashboard](https://github.com/soumyachk101/NexusOps-2.0) | [Documentation](https://github.com/soumyachk101/NexusOps-2.0)
