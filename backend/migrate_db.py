@@ -20,6 +20,13 @@ def migrate():
     except sqlite3.OperationalError as e:
         print(f"google_access_token column may already exist: {e}")
 
+    # Add github_token to repositories
+    try:
+        cursor.execute("ALTER TABLE repositories ADD COLUMN github_token VARCHAR(255)")
+        print("Added github_token column to repositories.")
+    except sqlite3.OperationalError as e:
+        print(f"github_token column may already exist: {e}")
+
     conn.commit()
     conn.close()
     print("Migration complete.")
