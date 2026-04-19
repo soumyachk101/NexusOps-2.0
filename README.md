@@ -77,81 +77,79 @@ No auto-merges. No silent deployments. Every fix is a Draft Pull Request reviewe
 
 NexusOps is designed as a distributed, event-driven system with strict separation between the ingestion layer, the intelligence layer, and the resolution layer.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         INGESTION MESH                              │
-│                                                                     │
-│   ┌───────────────┐   ┌───────────────┐   ┌──────────────────┐    │
-│   │ Sentry        │   │ Telegram      │   │ Custom Telemetry │    │
-│   │ Webhooks      │   │ Bot API       │   │ (HTTP / gRPC)    │    │
-│   └───────┬───────┘   └───────┬───────┘   └────────┬─────────┘    │
-└───────────┼───────────────────┼────────────────────┼──────────────┘
-            └───────────────────▼────────────────────┘
-                                │
-┌───────────────────────────────▼─────────────────────────────────────┐
-│                      INTELLIGENCE LAYER                             │
-│                                                                     │
-│   ┌────────────────────────────────────────────────────────────┐   │
-│   │                    FastAPI Gateway                         │   │
-│   └──────────────────────────┬─────────────────────────────────┘   │
-│                              │                                      │
-│   ┌──────────────────────────▼─────────────────────────────────┐   │
-│   │               PII & Secret Sanitizer                       │   │
-│   │         regex-based  ·  runs locally  ·  zero-trust        │   │
-│   └──────────────────────────┬─────────────────────────────────┘   │
-│                              │                                      │
-│   ┌──────────────────────────▼─────────────────────────────────┐   │
-│   │              Memory Enrichment Engine                      │   │
-│   │    pgvector similarity search  ·  cosine distance          │   │
-│   └──────┬──────────────────────────────────────────┬──────────┘   │
-│          │                                          │              │
-│   ┌──────▼──────┐                         ┌────────▼──────────┐   │
-│   │ PostgreSQL  │                         │  Pipeline          │   │
-│   │ + pgvector  │                         │  Controller        │   │
-│   └─────────────┘                         └────────┬──────────┘   │
-│                                                    │              │
-└────────────────────────────────────────────────────┼──────────────┘
-                                                     │
-┌────────────────────────────────────────────────────▼──────────────┐
-│                       RESOLUTION LAYER                             │
-│                                                                    │
-│   ┌─────────────────┐   ┌──────────────────┐   ┌──────────────┐  │
-│   │ Groq LLaMA 3.3  │──▶│  AutoFix Code    │──▶│  GitHub      │  │
-│   │ 70B Versatile   │   │  Generator       │   │  Draft PR    │  │
-│   └─────────────────┘   └──────────────────┘   └──────────────┘  │
-│                                                                    │
-│   ┌──────────────────────────────────────────────────────────┐    │
-│   │  Cinematic Dashboard  ·  Next.js 14  ·  Framer Motion    │    │
-│   └──────────────────────────────────────────────────────────┘    │
-└────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph INGESTION ["⬛ Ingestion Mesh"]
+        A1[🔴 Sentry Webhooks]
+        A2[✈️ Telegram Bot API]
+        A3[📡 Custom Telemetry]
+    end
+
+    subgraph INTELLIGENCE ["🟣 Intelligence Layer"]
+        B1[⚡ FastAPI Gateway]
+        B2[🛡️ PII & Secret Sanitizer]
+        B3[🧠 Memory Enrichment Engine]
+        B4[🗄️ PostgreSQL + pgvector]
+        B5[⚙️ Pipeline Controller]
+        B6[(🔴 Redis Cache & Queue)]
+    end
+
+    subgraph RESOLUTION ["🟢 Resolution Layer"]
+        C1[🤖 Groq LLaMA 3.3 — 70B]
+        C2[🔧 AutoFix Code Generator]
+        C3[📬 GitHub Draft PR]
+        C4[🖥️ Cinematic Dashboard]
+        C5[📩 Telegram Notification]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+
+    B1 --> B2
+    B2 --> B3
+    B3 <--> B4
+    B3 --> B5
+    B5 <--> B6
+    B5 --> C1
+
+    C1 --> C2
+    C2 --> C3
+    C2 --> C4
+    C2 --> C5
+
+    style INGESTION fill:#1e1e2e,stroke:#6D28D9,color:#fff
+    style INTELLIGENCE fill:#1e1e2e,stroke:#7C3AED,color:#fff
+    style RESOLUTION fill:#1e1e2e,stroke:#059669,color:#fff
 ```
 
 ### Data Flow
 
-```
-Sentry Webhook
-      │
-      ▼
-[1] Gateway receives event → validates schema → assigns incident ID
-      │
-      ▼
-[2] Sanitizer strips PII (API keys, IPs, emails) — locally, before any LLM call
-      │
-      ▼
-[3] Memory Engine queries pgvector for top-k similar past incidents
-      │   Returns: past discussions, runbooks, resolved fixes
-      │
-      ▼
-[4] Enriched payload → Celery task queue (Redis broker)
-      │
-      ▼
-[5] Groq LLaMA 3.3 inference → root cause + suggested fix
-      │
-      ▼
-[6] Fix staged as GitHub Draft PR with memory citations in PR body
-      │
-      ▼
-[7] Dashboard update + Telegram notification with confidence score
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SW as Sentry Webhook
+    participant GW as FastAPI Gateway
+    participant SN as PII Sanitizer
+    participant ME as Memory Engine
+    participant DB as PostgreSQL + pgvector
+    participant CQ as Celery + Redis
+    participant AI as Groq LLaMA 3.3
+    participant GH as GitHub
+    participant TG as Telegram
+
+    SW->>GW: POST /webhooks/sentry (HMAC verified)
+    GW->>SN: Raw incident payload
+    SN->>SN: Strip API keys, IPs, emails (local)
+    SN->>ME: Sanitized payload
+    ME->>DB: Cosine similarity query (top-k)
+    DB-->>ME: Relevant past incidents + runbooks
+    ME->>CQ: Enqueue enriched incident task
+    CQ->>AI: Sanitized trace + memory context
+    AI-->>CQ: Root cause + fix + confidence score
+    CQ->>GH: Create Draft Pull Request
+    CQ->>TG: Notify team with confidence badge
+    CQ->>GW: Update incident status → RESOLVED
 ```
 
 ---
@@ -423,32 +421,31 @@ GET    /api/v1/health                   Health check (liveness + readiness)
 
 ## 🔒 Security Model
 
-```
-┌────────────────────────────────────────────────────────┐
-│                  Trust Boundary                        │
-│                                                        │
-│  External Input                                        │
-│       │                                                │
-│       ▼                                                │
-│  ┌──────────────────────────────────────────────┐     │
-│  │  PII Sanitizer  (runs locally, pre-LLM call) │     │
-│  │  ─────────────────────────────────────────── │     │
-│  │  Strips: API keys, JWT tokens, emails,        │     │
-│  │          IP addresses, credit card numbers,   │     │
-│  │          AWS/GCP secrets, private keys        │     │
-│  └───────────────────────┬──────────────────────┘     │
-│                          │  Sanitized payload only     │
-│                          ▼                             │
-│  ┌──────────────────────────────────────────────┐     │
-│  │  Groq API  (external — sanitized data only)  │     │
-│  └───────────────────────┬──────────────────────┘     │
-│                          │                             │
-│                          ▼                             │
-│  ┌──────────────────────────────────────────────┐     │
-│  │  Audit Logger  (cryptographic hash + actor)  │     │
-│  └──────────────────────────────────────────────┘     │
-│                                                        │
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    EXT([🌐 External Input\nSentry · Telegram · Telemetry])
+
+    subgraph BOUNDARY ["🔒 Trust Boundary — NexusOps System"]
+        HMAC[✅ HMAC Webhook Verification]
+        RATE[🚦 Rate Limiter]
+
+        subgraph LOCAL ["Runs Locally — Never Leaves System"]
+            SAN["🛡️ PII Sanitizer\n──────────────────\nAPI keys · JWT tokens\nEmails · IP addresses\nAWS/GCP secrets · Private keys"]
+        end
+
+        LOG[📋 Cryptographic Audit Logger\nAction hash · Actor · Incident ID]
+    end
+
+    GROQ([🤖 Groq API\nSanitized payload only])
+    GH([📬 GitHub\nDraft PR — no merge scope])
+
+    EXT --> HMAC --> RATE --> SAN
+    SAN -- "Sanitized payload only" --> GROQ
+    GROQ --> LOG
+    LOG --> GH
+
+    style BOUNDARY fill:#0f172a,stroke:#6D28D9,color:#e2e8f0
+    style LOCAL fill:#1e293b,stroke:#059669,color:#e2e8f0
 ```
 
 - **HMAC Verification** — All incoming webhooks are verified against a shared secret before processing.
