@@ -23,9 +23,9 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24       # 24 hours
     JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # ── AI: Anthropic Claude ──
-    ANTHROPIC_API_KEY: Optional[str] = None
-    CLAUDE_MODEL: str = "claude-sonnet-4-6"
+    # ── AI: Groq ──
+    GROQ_API_KEY: Optional[str] = None
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     # ── AI: OpenAI (embeddings + Whisper) ──
     OPENAI_API_KEY: Optional[str] = None

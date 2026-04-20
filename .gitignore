@@ -70,3 +70,4 @@ frontend/.env
 backend/scripts/gen_token.py
 # Added by code-review-graph
 .code-review-graph/
+README.md

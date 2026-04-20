@@ -11,7 +11,7 @@ const config: Config = {
   	extend: {
   		colors: {
   			'bg-base': '#080a0f',
-  			'bg-surface': '#333333',
+  			'bg-surface': '#0e1117',
   			'bg-elevated': '#161b24',
   			'bg-hover': '#1c2230',
   			'bg-selected': '#1a2640',

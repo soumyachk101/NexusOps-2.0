@@ -1,11 +1,11 @@
 import json
 import re
-import anthropic
+from groq import AsyncGroq
 from app.config import settings
 
 
 class AIService:
-    """AI service powered by Anthropic Claude.
+    """AI service powered by Groq LLaMA 3.3.
 
     Provides:
     - Memory Q&A with citations
@@ -17,8 +17,8 @@ class AIService:
     """
 
     @staticmethod
-    def _client() -> anthropic.AsyncAnthropic:
-        return anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    def _client() -> AsyncGroq:
+        return AsyncGroq(api_key=settings.GROQ_API_KEY)
 
     @staticmethod
     async def _call_claude(
@@ -27,27 +27,25 @@ class AIService:
         temperature: float = 0.3,
         max_tokens: int = 2048,
     ) -> str:
-        if not settings.ANTHROPIC_API_KEY:
-            return "AI service not configured. Add ANTHROPIC_API_KEY to your .env file."
+        if not settings.GROQ_API_KEY:
+            return "AI service not configured. Add GROQ_API_KEY to your .env file."
 
         try:
-            kwargs = {
-                "model": settings.CLAUDE_MODEL,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": messages,
-            }
+            full_messages = []
             if system:
-                kwargs["system"] = system
+                full_messages.append({"role": "system", "content": system})
+            full_messages.extend(messages)
 
-            response = await AIService._client().messages.create(**kwargs)
-            return response.content[0].text
-        except anthropic.APIStatusError as e:
-            print(f"Claude API error ({e.status_code}): {e.message}")
-            return f"AI service error: {e.status_code}"
+            response = await AIService._client().chat.completions.create(
+                model=settings.GROQ_MODEL,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=full_messages,
+            )
+            return response.choices[0].message.content
         except Exception as e:
-            print(f"Claude connection error: {e}")
-            return f"Error connecting to Claude: {str(e)}"
+            print(f"Groq API error: {e}")
+            return f"AI service error: {str(e)}"
 
     # ── Memory Q&A ──
 
