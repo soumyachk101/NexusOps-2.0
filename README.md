@@ -1,199 +1,590 @@
 <div align="center">
 
-# 🚀 NexusOps 2.0
-### **The Intelligent Command Center for Modern AIOps**
+<br />
 
-[![NexusOps](https://img.shields.io/badge/NexusOps-v2.0.4-6D28D9?style=for-the-badge&logo=shield)](https://github.com/soumyachk101/NexusOps-2.0)
-[![Backend](https://img.shields.io/badge/Backend-FastAPI-05998B?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Frontend](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![AI](https://img.shields.io/badge/Inference-Groq%20LLaMA%203.3-f3d122?style=for-the-badge)](https://groq.com/)
-[![License](https://img.shields.io/badge/License-MIT-gray?style=for-the-badge)](LICENSE)
+```
+███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗ ██████╗ ██████╗ ███████╗
+████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝
+██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗██║   ██║██████╔╝███████╗
+██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║██║   ██║██╔═══╝ ╚════██║
+██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║╚██████╔╝██║     ███████║
+╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═╝     ╚══════╝
+```
 
----
+### The Intelligent Command Center for Modern AIOps
 
-![NexusOps Dashboard Mockup](/Users/soumyachakraborty/.gemini/antigravity/brain/1f8f48f3-0dae-4e7f-a999-f88902ffa43d/nexusops_dashboard_mockup_1776588378759.png)
+<br />
 
-**NexusOps 2.0** is an enterprise-grade, high-fidelity operational intelligence platform. It transforms production noise into actionable resolution by merging **Real-time Event Ingestion**, **Historical Team Memory**, and **Sub-second AI Remediation**.
+[![Version](https://img.shields.io/badge/version-2.0.4-6D28D9?style=flat-square)](https://github.com/soumyachk101/NexusOps-2.0/releases)
+[![License](https://img.shields.io/badge/license-MIT-0F6E56?style=flat-square)](./LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-05998B?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![Docker](https://img.shields.io/badge/docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
 
-[Explore Dashboard](https://github.com/soumyachk101/NexusOps-2.0) • [View Architecture](#-architectural-deep-dive) • [Setup Guide](#-getting-started)
+<br />
+
+> *Most AI observability tools only see the current stack trace.*  
+> *NexusOps sees the last 6 months of your team's institutional memory.*
+
+<br />
+
+[Getting Started](#-getting-started) · [Architecture](#-architecture) · [Features](#-core-features) · [Configuration](#-configuration) · [Contributing](#-contributing)
+
+<br />
 
 </div>
 
 ---
 
-## 📑 Table of Contents
-- [✨ Core Philosophy](#-core-philosophy)
-- [🏗️ Architectural Deep Dive](#️-architectural-deep-dive)
-- [🧠 The Intelligence Engines](#-the-intelligence-engines)
-- [🌊 Incident Lifecycle](#-incident-lifecycle)
-- [🛡️ Engineering Standards](#️-engineering-standards)
-- [💻 Tech Stack](#-tech-stack)
-- [🚀 Getting Started](#-getting-started)
-- [🗺️ Roadmap](#️-roadmap)
+## Table of Contents
+
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Core Features](#-core-features)
+- [Tech Stack](#-tech-stack)
+- [Getting Started](#-getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Quick Start with Docker](#quick-start-with-docker)
+  - [Manual Installation](#manual-installation)
+- [Configuration](#-configuration)
+- [API Reference](#-api-reference)
+- [Security Model](#-security-model)
+- [Project Structure](#-project-structure)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
-## ✨ Core Philosophy
-NexusOps is built on the principle of **Context-Aware Remediation**. Unlike generic AI assistants, NexusOps understands that every production environment has a unique history. By indexing team discussions, documentation, and past fixes, it provides "Senior SRE" level insights in milliseconds.
+## 📌 Overview
+
+**NexusOps 2.0** is a production-grade operational intelligence platform engineered for Site Reliability Engineers who need more than alerts — they need *context*. It is built on the principle that the most critical information during an incident is not what broke, but **what broke before and how the team fixed it**.
+
+NexusOps unifies three pillars into a single cohesive workflow:
+
+| Pillar | What it does |
+|---|---|
+| **Event Ingestion** | Consumes webhooks from Sentry, custom telemetry pipelines, and Telegram |
+| **Memory Enrichment** | Augments each incident with semantically similar past events and runbooks via pgvector |
+| **AI Remediation** | Generates root cause analysis and a draft code fix via Groq LLaMA 3.3 in < 500ms |
+
+No auto-merges. No silent deployments. Every fix is a Draft Pull Request reviewed by a human engineer.
 
 ---
 
-## 🏗️ Architectural Deep Dive
+## 🏗️ Architecture
 
-NexusOps is engineered as a distributed, event-driven ecosystem. It features a stateless API layer, an asynchronous task pipeline, and a vectorized memory fabric.
+NexusOps is designed as a distributed, event-driven system with strict separation between the ingestion layer, the intelligence layer, and the resolution layer.
 
 ```mermaid
 graph TD
-    %% Source Ingestion
-    subgraph IngestionMesh ["Ingestion Layer"]
-        Sentry[Sentry Webhooks]
-        Telegram[Telegram Bot API]
-        Custom[Custom Telemetry]
+    subgraph INGESTION ["⬛ Ingestion Mesh"]
+        A1[🔴 Sentry Webhooks]
+        A2[✈️ Telegram Bot API]
+        A3[📡 Custom Telemetry]
     end
 
-    %% Core Processing
-    subgraph Core ["NexusOps Intelligence Cluster"]
-        API[API Gateway / FastAPI]
-        Sanitizer[PII & Secret Sanitizer]
-        MemoryEngine[Memory Enrichment Engine]
-        Controller[Pipeline Controller]
+    subgraph INTELLIGENCE ["🟣 Intelligence Layer"]
+        B1[⚡ FastAPI Gateway]
+        B2[🛡️ PII & Secret Sanitizer]
+        B3[🧠 Memory Enrichment Engine]
+        B4[🗄️ PostgreSQL + pgvector]
+        B5[⚙️ Pipeline Controller]
+        B6[(🔴 Redis Cache & Queue)]
     end
 
-    %% Data Stores
-    subgraph Storage ["State & Vector Fabric"]
-        DB[(PostgreSQL + pgvector)]
-        Redis[(Redis Cache & Task Queue)]
+    subgraph RESOLUTION ["🟢 Resolution Layer"]
+        C1[🤖 Groq LLaMA 3.3 — 70B]
+        C2[🔧 AutoFix Code Generator]
+        C3[📬 GitHub Draft PR]
+        C4[🖥️ Cinematic Dashboard]
+        C5[📩 Telegram Notification]
     end
 
-    %% AI & Remediation
-    subgraph AI ["The Resolution Engine"]
-        Groq[Groq LLaMA 3.3 Inference]
-        FixGen[AutoFix Code Generator]
-        PR[GitHub Draft Pull Requests]
-    end
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
 
-    %% Connections
-    IngestionMesh -->|Webhook| API
-    API -->|Sanitized Trace| Sanitizer
-    Sanitizer -->|Context Request| MemoryEngine
-    MemoryEngine <-->|Vector Search| DB
-    MemoryEngine -->|Enriched Payload| Controller
-    Controller <-->|Async Tasks| Redis
-    Controller -->|LLM Inference| Groq
-    Groq -->|Resolution| FixGen
-    FixGen -->|Git Action| PR
+    B1 --> B2
+    B2 --> B3
+    B3 <--> B4
+    B3 --> B5
+    B5 <--> B6
+    B5 --> C1
 
-    %% Styling
-    classDef cluster fill:#111,stroke:#333,stroke-width:1px,color:#fff;
-    class IngestionMesh,Core,Storage,AI cluster;
-    
-    style IngestionMesh stroke:#6D28D9,stroke-width:2px
-    style Core stroke:#05998B,stroke-width:2px
-    style Storage stroke:#3b82f6,stroke-width:2px
-    style AI stroke:#f3d122,stroke-width:2px
+    C1 --> C2
+    C2 --> C3
+    C2 --> C4
+    C2 --> C5
+
+    style INGESTION fill:#1e1e2e,stroke:#6D28D9,color:#fff
+    style INTELLIGENCE fill:#1e1e2e,stroke:#7C3AED,color:#fff
+    style RESOLUTION fill:#1e1e2e,stroke:#059669,color:#fff
 ```
 
----
-
-## 🧠 The Intelligence Engines
-
-### 1. The Memory Engine (Contextual Awareness)
-Standard AIOps tools lack memory. NexusOps solves this using a **RAG (Retrieval-Augmented Generation)** pipeline over a vector database:
-- **Telegram/Slack Siphoning**: Ingests team discussions into the knowledge graph.
-- **Runbook Mapping**: Automatically links active incidents to internal documentation.
-- **Historical Deduplication**: Identifies if a similar incident was resolved previously.
-
-### 2. The AutoFix Pipeline (Sub-Second Remediation)
-Leveraging **Groq's LLaMA 3.3**, we achieve near-instantaneous root cause analysis:
-- **Trace Decomposition**: Breaks down complex stack traces into logical components.
-- **Confidence Scoring**: Each AI-generated fix includes a safety assessment (SAFE, REVIEW, BLOCKED).
-- **PR Automation**: Stages Draft PRs with full technical context for the SRE to review.
-
----
-
-## 🌊 Incident Lifecycle
-
-The following sequence illustrates the automated handling of a production fault:
+### Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant S as Sentry / Production
-    participant N as NexusOps Core
-    participant M as Memory Engine
-    participant G as Groq AI
-    participant H as GitHub / SRE
+    autonumber
+    participant SW as Sentry Webhook
+    participant GW as FastAPI Gateway
+    participant SN as PII Sanitizer
+    participant ME as Memory Engine
+    participant DB as PostgreSQL + pgvector
+    participant CQ as Celery + Redis
+    participant AI as Groq LLaMA 3.3
+    participant GH as GitHub
+    participant TG as Telegram
 
-    S->>N: Trigger Webhook (Stack Trace)
-    Note over N: Local Sanitization (Regex/LLM)
-    N->>M: Query Context (Recent Fixes/Chat)
-    M-->>N: Returns Vector Matches
-    N->>G: Analyze Incident (Sanitized + Context)
-    G-->>N: Root Cause + Code Fix
-    N->>H: Create Draft PR + Notify Dashboard
-    H->>H: Human SRE Review & Merge
+    SW->>GW: POST /webhooks/sentry (HMAC verified)
+    GW->>SN: Raw incident payload
+    SN->>SN: Strip API keys, IPs, emails (local)
+    SN->>ME: Sanitized payload
+    ME->>DB: Cosine similarity query (top-k)
+    DB-->>ME: Relevant past incidents + runbooks
+    ME->>CQ: Enqueue enriched incident task
+    CQ->>AI: Sanitized trace + memory context
+    AI-->>CQ: Root cause + fix + confidence score
+    CQ->>GH: Create Draft Pull Request
+    CQ->>TG: Notify team with confidence badge
+    CQ->>GW: Update incident status → RESOLVED
 ```
 
 ---
 
-## 🛡️ Engineering Standards
+## ⚡ Core Features
 
-- **Security-First**: Regex-based sanitization strips PII and credentials at the ingestion gateway.
-- **Async Reliability**: Heavy AI processing and git operations are handled by Celery workers to keep the UI snappy.
-- **High Performance**: PostgreSQL + `pgvector` ensures semantic search remains performant at scale.
-- **Human-in-the-Loop**: The platform never pushes code without explicit SRE approval.
+### Memory Engine
+
+The Memory Engine is the primary differentiator of NexusOps. Built on `pgvector` with cosine similarity search, it maintains a continuously updated knowledge base drawn from:
+
+- **Incident History** — Every resolved incident is vectorized and stored. When a new incident arrives, the top-k most semantically similar past events are surfaced.
+- **Team Discussions** — Telegram and Slack threads are indexed automatically, capturing informal tribal knowledge that never makes it into runbooks.
+- **Runbooks & Internal Documentation** — Structured documentation ingested and chunked for retrieval.
+
+> **Why this matters:** An SRE triaging a `NullPointerException` in a payment service at 2 AM needs to know that the same error surfaced 3 months ago because of a race condition in the order fulfillment pipeline — and that the fix was a 2-line database transaction scope change. NexusOps surfaces this in the incident brief automatically.
+
+### AutoFix Engine
+
+Powered by **Groq's LLaMA 3.3 70B Versatile**, the AutoFix Engine provides sub-500ms inference with:
+
+| Property | Detail |
+|---|---|
+| **Inference Latency** | < 500ms (Groq's hardware-accelerated inference) |
+| **Input** | Sanitized stack trace + enriched memory context |
+| **Output** | Root cause analysis + line-level code fix + confidence score |
+| **Confidence Tiers** | `SAFE` · `REVIEW` · `BLOCKED` |
+| **Output Artifact** | GitHub Draft Pull Request with cited context |
+
+### Cinematic Dashboard
+
+A real-time incident command interface built with Next.js 14 App Router, Framer Motion, and Shadcn/UI. Designed for high-stress, low-latency decision making — not for demo slides.
+
+### Security-First by Design
+
+NexusOps treats data privacy as a first-class architectural constraint, not an afterthought:
+
+- **Local PII Sanitization** — All secrets, API keys, email addresses, and IP addresses are stripped at the ingestion gateway using a deterministic regex engine before any data leaves the system boundary.
+- **Cryptographic Audit Logs** — Every AI inference action is hashed and logged with full attribution to a specific incident ID and user.
+- **Draft-Only PRs** — NexusOps is architecturally incapable of merging code. It creates Draft Pull Requests only. Merge authority belongs exclusively to the human engineer.
 
 ---
 
-## 💻 Tech Stack
+## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 14 (App Router), Framer Motion, Tailwind CSS, Shadcn/UI.
-- **Backend**: Python 3.12, FastAPI, SQLAlchemy (Async), Celery/Redis.
-- **Storage**: PostgreSQL with `pgvector` for semantic search.
-- **AI**: Groq API (LLaMA 3.3 70B Versatile).
+### Backend
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Runtime | Python 3.12 | Core application runtime |
+| Framework | FastAPI 0.111 | Async HTTP gateway, OpenAPI spec generation |
+| ORM | SQLAlchemy 2.x (Async) | Database abstraction with async session management |
+| Task Queue | Celery + Redis | Async incident processing pipeline |
+| Vector Search | pgvector (PostgreSQL) | Semantic similarity for memory enrichment |
+| AI Inference | Groq API — LLaMA 3.3 70B | Sub-500ms root cause analysis |
+| Validation | Pydantic v2 | Request/response schema enforcement |
+
+### Frontend
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Framework | Next.js 14 (App Router) | SSR/RSC, routing, API layer |
+| Styling | Tailwind CSS + Shadcn/UI | Design system, accessible components |
+| Animation | Framer Motion | Incident timeline, dashboard transitions |
+| State | Zustand | Global incident state management |
+| Data Fetching | TanStack Query | Server state, real-time polling |
+
+### Infrastructure
+
+| Component | Technology |
+|---|---|
+| Container Orchestration | Docker Compose |
+| Primary Database | PostgreSQL 16 + pgvector |
+| Cache & Broker | Redis 7 (Upstash-compatible) |
+| Version Control Integration | GitHub REST API v3 |
+| Monitoring Ingestion | Sentry Webhook API |
 
 ---
 
 ## 🚀 Getting Started
 
-### Quick Start (Docker)
-The fastest way to experience NexusOps 2.0 is via Docker Compose:
+### Prerequisites
+
+Ensure the following are installed and configured on your development machine:
+
+- **Node.js** `>= 20.x` — [Download](https://nodejs.org)
+- **Python** `>= 3.12` — [Download](https://python.org)
+- **Docker** `>= 24.x` and **Docker Compose** `>= 2.x` — [Download](https://docker.com)
+- **Git** — [Download](https://git-scm.com)
+
+You will also need the following API credentials:
+
+- `GROQ_API_KEY` — [Obtain from Groq Console](https://console.groq.com)
+- `GITHUB_TOKEN` — Personal Access Token with `repo` scope
+- `SENTRY_WEBHOOK_SECRET` — From your Sentry project's webhook settings
+
+---
+
+### Quick Start with Docker
+
+The fastest path to a running instance. Spins up the full stack — PostgreSQL, Redis, backend, and frontend — with a single command.
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/soumyachk101/NexusOps-2.0.git
+cd NexusOps-2.0
+
+# 2. Copy environment templates
+cp backend/.env.example backend/.env
+cp frontend/.env.local.example frontend/.env.local
+
+# 3. Populate your credentials in backend/.env
+#    (GROQ_API_KEY, DATABASE_URL, GITHUB_TOKEN, SENTRY_WEBHOOK_SECRET)
+
+# 4. Build and start all services
 docker-compose up --build
+
+# 5. Run database migrations (first-time setup)
+docker-compose exec backend alembic upgrade head
+
+# 6. Seed vector extensions
+docker-compose exec backend python -m scripts.seed_pgvector
 ```
+
+The application will be available at:
+
+| Service | URL |
+|---|---|
+| Frontend Dashboard | `http://localhost:3000` |
+| Backend API | `http://localhost:8000` |
+| API Documentation | `http://localhost:8000/docs` |
+| PostgreSQL | `localhost:5432` |
+| Redis | `localhost:6379` |
+
+---
 
 ### Manual Installation
 
-**1. Clone & Environment**
+Use this path for development or if you prefer managing processes individually.
+
+**1. Clone and configure**
+
 ```bash
 git clone https://github.com/soumyachk101/NexusOps-2.0.git
 cd NexusOps-2.0
 cp backend/.env.example backend/.env
-cp frontend/.env.local frontend/.env
+cp frontend/.env.local.example frontend/.env.local
 ```
 
-**2. Backend Setup**
+**2. Start infrastructure services**
+
+```bash
+# Start PostgreSQL and Redis via Docker (or use local installations)
+docker-compose up postgres redis -d
+```
+
+**3. Backend setup**
+
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate
+
+# Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate        # Linux / macOS
+# venv\Scripts\activate         # Windows
+
+# Install dependencies
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+
+# Apply database migrations
+alembic upgrade head
+
+# Start the development server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**4. Frontend setup**
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+**5. Start the Celery worker** (separate terminal)
+
+```bash
+cd backend
+source venv/bin/activate
+celery -A app.worker worker --loglevel=info
+```
+
+---
+
+## ⚙️ Configuration
+
+All configuration is managed via environment variables. Never commit `.env` files to version control.
+
+### `backend/.env`
+
+```env
+# ── Application ─────────────────────────────────────────────────────
+APP_ENV=development
+SECRET_KEY=your-secret-key-minimum-32-characters
+DEBUG=true
+
+# ── Database ─────────────────────────────────────────────────────────
+DATABASE_URL=postgresql+asyncpg://nexusops:password@localhost:5432/nexusops
+PGVECTOR_DIMENSIONS=1536
+
+# ── Redis / Celery ────────────────────────────────────────────────────
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/1
+CELERY_RESULT_BACKEND=redis://localhost:6379/2
+
+# ── AI Inference ─────────────────────────────────────────────────────
+GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
+GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MAX_TOKENS=2048
+MEMORY_TOP_K=5                     # Number of similar incidents to retrieve
+
+# ── Integrations ─────────────────────────────────────────────────────
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+GITHUB_OWNER=your-org-or-username
+GITHUB_REPO=your-target-repository
+
+SENTRY_WEBHOOK_SECRET=your-sentry-webhook-secret
+TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+TELEGRAM_CHAT_ID=your-chat-id
+
+# ── Sanitizer ────────────────────────────────────────────────────────
+SANITIZER_ENABLED=true
+SANITIZER_LOG_REDACTIONS=true
+```
+
+### `frontend/.env.local`
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_APP_ENV=development
+```
+
+---
+
+## 📡 API Reference
+
+Full interactive documentation is available at `/docs` (Swagger UI) and `/redoc` (ReDoc) when the backend is running.
+
+### Key Endpoints
+
+```
+POST   /api/v1/webhooks/sentry          Receive Sentry error events
+POST   /api/v1/webhooks/custom          Receive custom telemetry payloads
+
+GET    /api/v1/incidents                List all incidents (paginated)
+GET    /api/v1/incidents/{id}           Get incident detail with memory context
+PATCH  /api/v1/incidents/{id}/resolve   Mark incident as resolved
+
+POST   /api/v1/memory/ingest            Ingest a document into the memory store
+GET    /api/v1/memory/search            Semantic search across the memory store
+
+GET    /api/v1/health                   Health check (liveness + readiness)
+```
+
+---
+
+## 🔒 Security Model
+
+```mermaid
+flowchart TD
+    EXT([🌐 External Input\nSentry · Telegram · Telemetry])
+
+    subgraph BOUNDARY ["🔒 Trust Boundary — NexusOps System"]
+        HMAC[✅ HMAC Webhook Verification]
+        RATE[🚦 Rate Limiter]
+
+        subgraph LOCAL ["Runs Locally — Never Leaves System"]
+            SAN["🛡️ PII Sanitizer\n──────────────────\nAPI keys · JWT tokens\nEmails · IP addresses\nAWS/GCP secrets · Private keys"]
+        end
+
+        LOG[📋 Cryptographic Audit Logger\nAction hash · Actor · Incident ID]
+    end
+
+    GROQ([🤖 Groq API\nSanitized payload only])
+    GH([📬 GitHub\nDraft PR — no merge scope])
+
+    EXT --> HMAC --> RATE --> SAN
+    SAN -- "Sanitized payload only" --> GROQ
+    GROQ --> LOG
+    LOG --> GH
+
+    style BOUNDARY fill:#0f172a,stroke:#6D28D9,color:#e2e8f0
+    style LOCAL fill:#1e293b,stroke:#059669,color:#e2e8f0
+```
+
+- **HMAC Verification** — All incoming webhooks are verified against a shared secret before processing.
+- **JWT Authentication** — Dashboard access requires a signed JWT with configurable expiry.
+- **Rate Limiting** — FastAPI middleware enforces per-IP and per-endpoint rate limits.
+- **Draft PRs Only** — The GitHub integration is scoped to `pull_request:write`. It cannot push directly to any branch.
+
+---
+
+## 📁 Project Structure
+
+```
+nexusops-2.0/
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── v1/
+│   │   │   │   ├── incidents.py
+│   │   │   │   ├── memory.py
+│   │   │   │   └── webhooks.py
+│   │   │   └── deps.py
+│   │   ├── core/
+│   │   │   ├── config.py
+│   │   │   ├── security.py
+│   │   │   └── logging.py
+│   │   ├── models/
+│   │   │   ├── incident.py
+│   │   │   └── memory_chunk.py
+│   │   ├── services/
+│   │   │   ├── memory_engine.py    # pgvector similarity search
+│   │   │   ├── sanitizer.py        # PII stripping
+│   │   │   ├── groq_client.py      # LLM inference
+│   │   │   ├── github_client.py    # Draft PR creation
+│   │   │   └── telegram_client.py  # Notifications
+│   │   ├── worker/
+│   │   │   ├── celery_app.py
+│   │   │   └── tasks/
+│   │   │       ├── process_incident.py
+│   │   │       └── ingest_memory.py
+│   │   └── main.py
+│   ├── alembic/
+│   ├── tests/
+│   ├── .env.example
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── (dashboard)/
+│   │   │   │   ├── incidents/
+│   │   │   │   └── memory/
+│   │   │   └── layout.tsx
+│   │   ├── components/
+│   │   │   ├── ui/                 # Shadcn base components
+│   │   │   ├── incident-card.tsx
+│   │   │   ├── memory-panel.tsx
+│   │   │   └── confidence-badge.tsx
+│   │   ├── lib/
+│   │   │   ├── api.ts
+│   │   │   └── utils.ts
+│   │   └── store/
+│   │       └── incidents.ts        # Zustand store
+│   ├── .env.local.example
+│   └── package.json
+│
+├── docker-compose.yml
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+└── README.md
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] **v2.0**: Core Memory Engine & AutoFix Pipeline.
-- [x] **v2.1**: GitHub PR Automation & Sentry Webhooks.
-- [ ] **v2.2**: Slack/Teams Integration (Phase 4).
-- [ ] **v2.3**: Multi-cloud Auto-Revert (Phase 5).
-- [ ] **v2.4**: Advanced Analytics & MTTR Tracking.
+- [x] Sentry webhook ingestion
+- [x] pgvector memory enrichment
+- [x] Groq LLaMA 3.3 inference
+- [x] GitHub Draft PR generation
+- [x] Telegram notifications
+- [x] Confidence scoring (SAFE / REVIEW / BLOCKED)
+- [ ] Slack ingestion adapter
+- [ ] OpenTelemetry trace integration
+- [ ] Multi-repository support
+- [ ] RBAC for team-level access control
+- [ ] Memory decay and re-ranking policies
+- [ ] Exportable incident post-mortems (PDF)
+- [ ] Self-hosted LLM option via Ollama
 
 ---
 
-## 📄 License & Attribution
+## 🤝 Contributing
 
-Distributed under the MIT License. Built with ❤️ for the Next Generation of SREs by **Soumya Chakraborty**.
+Contributions are welcome. Please follow the process below to keep the codebase clean and the review cycle fast.
 
-[Showcase Dashboard](https://github.com/soumyachk101/NexusOps-2.0) | [Documentation](https://github.com/soumyachk101/NexusOps-2.0)
+**1. Fork and branch**
+
+```bash
+git checkout -b feat/your-feature-name
+# or
+git checkout -b fix/your-bug-description
+```
+
+**2. Commit convention**
+
+This project follows [Conventional Commits](https://www.conventionalcommits.org/).
+
+```
+feat: add slack ingestion adapter
+fix: resolve race condition in memory engine query
+docs: update API reference for /incidents endpoint
+chore: bump groq-sdk to 0.9.0
+```
+
+**3. Before opening a PR**
+
+```bash
+# Backend
+cd backend && pytest --cov=app tests/
+
+# Frontend
+cd frontend && npm run lint && npm run type-check
+```
+
+**4. Open a Pull Request** against `main` with a clear description of what changed and why.
+
+---
+
+## 📄 License
+
+Distributed under the [MIT License](./LICENSE).
+
+---
+
+<div align="center">
+
+Built by **[Soumya Chakraborty](https://chksoumya.in)** · [@soumyachk101](https://github.com/soumyachk101)
+
+*If this project was useful to you, consider leaving a ⭐*
+
+</div>

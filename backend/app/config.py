@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     CLOUDFLARE_R2_BUCKET: str = "nexusops"
     CLOUDFLARE_R2_ENDPOINT: Optional[str] = None
 
+    # ── Firebase ──
+    FIREBASE_WEB_API_KEY: Optional[str] = None
+
     # ── Frontend ──
     FRONTEND_URL: str = "http://localhost:3000"
 

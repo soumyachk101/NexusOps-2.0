@@ -25,6 +25,10 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+class FirebaseAuthRequest(BaseModel):
+    id_token: str
+
+
 # ── Response Models ──
 
 class TokenResponse(BaseModel):

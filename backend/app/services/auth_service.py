@@ -117,6 +117,60 @@ class AuthService:
         await db.flush()
         return user
 
+
+    # ── Firebase Auth ──
+    async def verify_firebase_id_token(self, id_token: str) -> dict:
+        """Verify Firebase ID token using Google Identity Toolkit."""
+        if not settings.FIREBASE_WEB_API_KEY:
+            raise ValueError("Firebase auth is not configured")
+
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={settings.FIREBASE_WEB_API_KEY}"
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json={"idToken": id_token})
+
+        if response.status_code != 200:
+            raise ValueError("Invalid Firebase token")
+
+        payload = response.json()
+        users = payload.get("users") or []
+        if not users:
+            raise ValueError("Invalid Firebase token")
+
+        firebase_user = users[0]
+        email = firebase_user.get("email")
+        if not email:
+            raise ValueError("Firebase account is missing email")
+
+        return {
+            "firebase_id": firebase_user.get("localId"),
+            "email": email,
+            "name": firebase_user.get("displayName") or email.split("@")[0],
+            "avatar_url": firebase_user.get("photoUrl"),
+        }
+
+    async def get_or_create_firebase_user(self, db: AsyncSession, firebase_data: dict) -> User:
+        """Find user by email for Firebase auth, or create new one."""
+        result = await db.execute(select(User).where(User.email == firebase_data["email"]))
+        user = result.scalar_one_or_none()
+
+        if user:
+            if user.provider == "credentials":
+                user.provider = "firebase"
+            if not user.name and firebase_data.get("name"):
+                user.name = firebase_data["name"]
+            if not user.avatar_url and firebase_data.get("avatar_url"):
+                user.avatar_url = firebase_data["avatar_url"]
+            await db.flush()
+            return user
+
+        return await self.create_user(
+            db,
+            email=firebase_data["email"],
+            name=firebase_data.get("name") or firebase_data["email"].split("@")[0],
+            provider="firebase",
+            avatar_url=firebase_data.get("avatar_url"),
+        )
+
     # ── Google OAuth ──
     async def exchange_google_token(self, access_token: str) -> dict:
         """Fetch Google user info using the access token."""

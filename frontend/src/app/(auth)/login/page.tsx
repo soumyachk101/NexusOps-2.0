@@ -7,7 +7,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Lock, ArrowRight, Activity, Command, User, Mail, TerminalSquare } from "lucide-react";
 import Link from "next/link";
 import { DitherShader } from "@/components/ui/dither-shader";
-import { authApi, setTokens } from "@/lib/api";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+import { firebaseAuth } from "@/lib/firebase";
 
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -69,24 +74,30 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        const res = await signIn("credentials", { redirect: false, email, password });
+        const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        const idToken = await credential.user.getIdToken();
+        const res = await signIn("firebase", { redirect: false, idToken });
         if (res?.error) setError("AUTHENTICATION FAILED. INCORRECT CREDENTIALS.");
         else {
           router.push("/dashboard");
           router.refresh();
         }
       } else {
-        const data = await authApi.register(email, name, password);
-        setTokens(data.tokens.access_token, data.tokens.refresh_token);
-        const res = await signIn("credentials", { redirect: false, email, password });
+        const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        if (name.trim()) {
+          await updateProfile(credential.user, { displayName: name.trim() });
+        }
+        const idToken = await credential.user.getIdToken();
+        const res = await signIn("firebase", { redirect: false, idToken });
         if (res?.error) toggleMode();
         else {
           router.push("/dashboard");
           router.refresh();
         }
       }
-    } catch (err: any) {
-      setError(err?.detail || err?.message || "SYSTEM FAULT. CONNECTION DROPPED.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "SYSTEM FAULT. CONNECTION DROPPED.";
+      setError(message);
     } finally {
       setIsLoading(false);
     }

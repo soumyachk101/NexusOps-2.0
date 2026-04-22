@@ -8,7 +8,8 @@ import { IncidentCard } from "@/components/autofix/IncidentCard";
 import { mockDashboardStats, mockActivityFeed } from "@/lib/mock-data";
 import { Search, ArrowRight, Zap, Brain, Shield, TrendingUp } from "lucide-react";
 import Link from "next/link";
-import { autofixApi, workspaceApi } from "@/lib/api";
+import { autofixApi } from "@/lib/api";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import type { Incident } from "@/lib/types";
 
 const systemStatus = [
@@ -20,15 +21,18 @@ const systemStatus = [
 export default function DashboardPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
+  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspaceStore();
 
   useEffect(() => {
+    if (workspaceLoading) return;
+    if (!currentWorkspace) {
+      setLoading(false);
+      return;
+    }
     const loadData = async () => {
       try {
-        const { workspaces } = await workspaceApi.list();
-        if (workspaces && workspaces.length > 0) {
-          const data = await autofixApi.listIncidents(workspaces[0].id);
-          setIncidents(data);
-        }
+        const data = await autofixApi.listIncidents(currentWorkspace.id);
+        setIncidents(data);
       } catch (err) {
         console.warn("Dashboard data load failed (backend may be offline):", err);
       } finally {
@@ -36,7 +40,7 @@ export default function DashboardPage() {
       }
     };
     loadData();
-  }, []);
+  }, [currentWorkspace, workspaceLoading]);
 
   const activeIncidents = incidents
     .filter((i) => !["resolved", "dismissed", "pr_created"].includes(i.status))

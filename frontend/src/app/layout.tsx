@@ -19,8 +19,7 @@ const spaceGrotesk = Space_Grotesk({
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  style: ["normal", "italic"],
+  weight: ["400", "700"],
   variable: "--font-playfair",
   display: "swap",
 });

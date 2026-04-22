@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { SourceBadge } from "./SourceBadge";
+import { DocumentChunk } from "@/lib/api";
 
 interface AnswerCardProps {
   content: string;
@@ -62,7 +63,7 @@ export function AnswerCard({ content, sources, confidence }: AnswerCardProps) {
           </p>
           <div className="flex flex-wrap gap-1.5">
             {sources.map((source, idx) => (
-              <SourceBadge key={(source.id as string) || idx} chunk={source as any} />
+              <SourceBadge key={(source.id as string) || idx} chunk={source as unknown as DocumentChunk} />
             ))}
           </div>
         </div>

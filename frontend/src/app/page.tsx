@@ -568,7 +568,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-base text-text-secondary leading-relaxed max-w-xl">
               A focused surface of tools that compound. Nexus is opinionated
-              where it matters, and invisible where it shouldn't.
+              where it matters, and invisible where it shouldn&apos;t.
             </p>
           </motion.div>
 
@@ -972,6 +972,9 @@ function SignalMeshWidget() {
 
 /* 2. Incident Heatwave — grid of pulsing cells */
 function IncidentHeatwaveWidget() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const cols = 18;
   const rows = 7;
   const cells = Array.from({ length: cols * rows });
@@ -1000,7 +1003,7 @@ function IncidentHeatwaveWidget() {
         {cells.map((_, i) => {
           const isHot = hotMap.has(i);
           const delay = hotMap.get(i) ?? 0;
-          const base = Math.random() > 0.82 ? 0.18 : 0.06;
+          const base = !mounted ? 0.06 : (Math.random() > 0.82 ? 0.18 : 0.06);
           return (
             <motion.div
               key={i}

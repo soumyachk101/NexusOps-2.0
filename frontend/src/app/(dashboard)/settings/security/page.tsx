@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Lock, Eye, FileWarning, CheckCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Shield, Lock, FileWarning, CheckCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SecuritySetting {

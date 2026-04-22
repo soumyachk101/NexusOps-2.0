@@ -9,6 +9,7 @@ from app.schemas.auth import (
     RegisterRequest,
     GitHubCallbackRequest,
     RefreshTokenRequest,
+    FirebaseAuthRequest,
     AuthResponse,
     UserResponse,
     TokenResponse,
@@ -96,6 +97,26 @@ async def google_callback(token: str, db: AsyncSession = Depends(get_db)):
         tokens=TokenResponse(**tokens),
     )
 
+
+
+
+@router.post("/firebase", response_model=AuthResponse)
+async def firebase_auth(body: FirebaseAuthRequest, db: AsyncSession = Depends(get_db)):
+    """Authenticate with Firebase ID token and return backend JWTs."""
+    try:
+        firebase_data = await auth_service.verify_firebase_id_token(body.id_token)
+        user = await auth_service.get_or_create_firebase_user(db, firebase_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+
+    tokens = auth_service.create_tokens(user)
+    return AuthResponse(
+        user=UserResponse.model_validate(user),
+        tokens=TokenResponse(**tokens),
+    )
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(body: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):

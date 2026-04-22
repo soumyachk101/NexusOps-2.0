@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -53,7 +53,7 @@ export default function IncidentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const loadIncident = async () => {
+  const loadIncident = useCallback(async () => {
     try {
       const data = await autofixApi.getIncident(incidentId);
       setIncident(data);
@@ -79,7 +79,7 @@ export default function IncidentDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [incidentId]);
 
   useEffect(() => {
     loadIncident();
@@ -99,7 +99,7 @@ export default function IncidentDetailPage() {
       } catch {}
     }, 3000);
     return () => clearInterval(interval);
-  }, [incidentId]);
+  }, [incidentId, loadIncident]);
 
   if (loading) return <div className="p-8 text-center text-text-muted text-sm animate-pulse">Loading Incident Details...</div>;
   if (!incident) return <div className="p-8 text-center text-text-muted text-sm">Incident not found</div>;

@@ -70,4 +70,23 @@ frontend/.env
 backend/scripts/gen_token.py
 # Added by code-review-graph
 .code-review-graph/
-README.md
+
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf
+
+# keep Firebase client helper tracked
+!frontend/src/lib/firebase.ts
+!frontend/src/lib/

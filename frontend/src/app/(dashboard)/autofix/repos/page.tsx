@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { GitBranch, CheckCircle, Plus, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import axios from "axios";
 import { autofixApi, workspaceApi, Repository, Workspace } from "@/lib/api";
 
 export default function ReposPage() {
@@ -50,9 +51,13 @@ export default function ReposPage() {
       setRepos([newRepo, ...repos]);
       setIsModalOpen(false);
       setFormData({ name: "", full_name: "", default_branch: "main", token: "" });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to connect repo:", err);
-      setError(err.response?.data?.detail || "Failed to connect repository");
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.detail || "Failed to connect repository");
+      } else {
+        setError("An unexpected error occurred");
+      }
     } finally {
       setSubmitting(false);
     }

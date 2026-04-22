@@ -10,6 +10,40 @@ const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || "nexusops-dev-fallback-secret",
   providers: [
     CredentialsProvider({
+      id: "firebase",
+      name: "Firebase",
+      credentials: {
+        idToken: { label: "ID Token", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.idToken) return null;
+
+        try {
+          const res = await fetch(`${API_BASE}/api/v1/auth/firebase`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id_token: credentials.idToken }),
+          });
+
+          if (!res.ok) return null;
+
+          const data = await res.json();
+          return {
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            image: data.user.avatar_url,
+            accessToken: data.tokens.access_token,
+            refreshToken: data.tokens.refresh_token,
+            provider: data.user.provider,
+          };
+        } catch (error) {
+          console.error("Firebase auth error:", error);
+          return null;
+        }
+      },
+    }),
+    CredentialsProvider({
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
@@ -52,6 +86,7 @@ const authOptions: NextAuthOptions = {
           GitHubProvider({
             clientId: process.env.GITHUB_CLIENT_ID,
             clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            httpOptions: { timeout: 15000 },
           }),
         ]
       : []),
@@ -60,6 +95,7 @@ const authOptions: NextAuthOptions = {
           GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            httpOptions: { timeout: 15000 },
           }),
         ]
       : []),

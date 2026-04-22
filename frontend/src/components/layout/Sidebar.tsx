@@ -16,7 +16,6 @@ import {
   Brain,
   LayoutDashboard,
   X,
-  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/store/workspaceStore";

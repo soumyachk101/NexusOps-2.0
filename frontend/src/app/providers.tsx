@@ -11,15 +11,13 @@ function TokenSync({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (status === "authenticated" && session) {
-      // Sync backend tokens from NextAuth JWT to localStorage
       const s = session as unknown as Record<string, unknown>;
       const accessToken = s.accessToken as string | undefined;
       const refreshToken = s.refreshToken as string | undefined;
       if (accessToken && refreshToken) {
         setTokens(accessToken, refreshToken);
+        fetchWorkspaces();
       }
-      // Fetch workspaces after successful auth
-      fetchWorkspaces();
     }
   }, [status, session, fetchWorkspaces]);
 
