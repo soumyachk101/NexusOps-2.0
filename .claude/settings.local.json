@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude plugin *)",
+      "Bash(curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh)",
+      "Bash(sh)",
+      "Bash(cargo install *)",
+      "Bash(curl -fsSL https://raw.githubusercontent.com/nadimtuhin/claude-token-optimizer/main/init.sh)",
+      "Bash(bash)",
+      "Bash(pip install *)",
+      "Bash(code-review-graph install *)",
+      "Bash(code-review-graph build *)",
+      "Bash(venv/bin/pip install *)",
+      "Bash(venv/bin/python -c \"from app.main import app; print\\('✅ Backend imports OK'\\)\")",
+      "Bash(venv/bin/python -c ' *)",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute"
+    ]
+  }
+}

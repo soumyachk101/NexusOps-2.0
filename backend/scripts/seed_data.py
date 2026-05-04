@@ -18,6 +18,7 @@ from app.models.incident import Incident
 from app.models.task import Task, Problem
 from app.models.source import Source
 from app.models.repository import Repository
+from app.models.activity_log import ActivityLog
 from app.services.auth_service import auth_service
 
 
@@ -278,6 +279,65 @@ async def seed():
                 db.add(source)
             await db.flush()
             print(f"✓ Seeded {len(sources_data)} sources")
+
+        # ── 8. Seed Activity Logs ──
+        log_check = await db.execute(select(ActivityLog).where(ActivityLog.workspace_id == ws_id))
+        if log_check.scalars().first():
+            print("✓ Activity logs already seeded")
+        else:
+            logs_data = [
+                {
+                    "module": "autofix",
+                    "action": "pr_created",
+                    "metadata": {
+                        "title": "Draft PR Created: Fix null pointer in auth middleware",
+                        "description": "AI-generated fix for TypeError in production.",
+                    },
+                    "created_at": hours_ago(2),
+                },
+                {
+                    "module": "memory",
+                    "action": "memory_query",
+                    "metadata": {
+                        "title": "Q&A: Why did we choose Redis?",
+                        "description": "Answered using 3 sources in 420ms.",
+                    },
+                    "created_at": hours_ago(4),
+                },
+                {
+                    "module": "memory",
+                    "action": "document_ingested",
+                    "metadata": {
+                        "title": "Source Processed: API Design Guidelines",
+                        "description": "New document indexed and ready for Q&A.",
+                    },
+                    "created_at": hours_ago(24),
+                },
+                {
+                    "module": "autofix",
+                    "action": "incident_received",
+                    "metadata": {
+                        "title": "New Critical Incident: TypeError",
+                        "description": "Received from Sentry production environment.",
+                    },
+                    "created_at": hours_ago(1),
+                },
+                {
+                    "module": "memory",
+                    "action": "task_detected",
+                    "metadata": {
+                        "title": "Task Detected: Fix memory leak",
+                        "description": "Extracted from [Incident Response Channel].",
+                    },
+                    "created_at": days_ago(1),
+                },
+            ]
+
+            for log_data in logs_data:
+                log = ActivityLog(workspace_id=ws_id, **log_data)
+                db.add(log)
+            await db.flush()
+            print(f"✓ Seeded {len(logs_data)} activity logs")
 
         await db.commit()
         print("\n🎉 Seed data complete! Login with: admin@nexusops.ai / password")

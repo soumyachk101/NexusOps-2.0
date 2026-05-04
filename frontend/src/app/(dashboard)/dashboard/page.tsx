@@ -5,10 +5,9 @@ import { motion } from "framer-motion";
 import { UnifiedStats } from "@/components/dashboard/UnifiedStats";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { IncidentCard } from "@/components/autofix/IncidentCard";
-import { mockDashboardStats, mockActivityFeed } from "@/lib/mock-data";
 import { Search, ArrowRight, Zap, Brain, Shield, TrendingUp } from "lucide-react";
 import Link from "next/link";
-import { autofixApi, workspaceApi } from "@/lib/api";
+import { autofixApi, workspaceApi, nexusApi } from "@/lib/api";
 import type { Incident } from "@/lib/types";
 
 const systemStatus = [
@@ -19,6 +18,8 @@ const systemStatus = [
 
 export default function DashboardPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,8 +27,18 @@ export default function DashboardPage() {
       try {
         const { workspaces } = await workspaceApi.list();
         if (workspaces && workspaces.length > 0) {
-          const data = await autofixApi.listIncidents(workspaces[0].id);
-          setIncidents(data);
+          const wsId = workspaces[0].id;
+          
+          // Parallel fetch for speed
+          const [incidentsData, statsData, timelineData] = await Promise.all([
+            autofixApi.listIncidents(wsId),
+            nexusApi.getDashboardStats(wsId),
+            nexusApi.getTimeline(wsId, 10)
+          ]);
+
+          setIncidents(incidentsData);
+          setStats(statsData);
+          setTimeline(timelineData);
         }
       } catch (err) {
         console.warn("Dashboard data load failed (backend may be offline):", err);
@@ -51,7 +62,6 @@ export default function DashboardPage() {
         transition={{ duration: 0.4 }}
         className="relative overflow-hidden rounded-2xl border border-border-faint bg-bg-surface p-6"
       >
-        {/* Background grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -60,7 +70,6 @@ export default function DashboardPage() {
             backgroundSize: "40px 40px",
           }}
         />
-        {/* Gradient orbs */}
         <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-nexus-primary/5 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-memory-primary/5 blur-3xl pointer-events-none" />
 
@@ -78,7 +87,6 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* System Status Pills */}
           <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
             {systemStatus.map(({ label, icon: Icon, color, pulse }) => (
               <div
@@ -95,7 +103,15 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ── Stats Grid ──────────────────────────────────────────────── */}
-      <UnifiedStats stats={mockDashboardStats} />
+      {stats ? (
+        <UnifiedStats stats={stats} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-32 rounded-2xl bg-bg-surface border border-border-faint animate-pulse" />
+          ))}
+        </div>
+      )}
 
       {/* ── Main Content: 5-col grid ────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
@@ -113,7 +129,19 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="p-3 max-h-[520px] overflow-y-auto">
-              <ActivityFeed items={mockActivityFeed} />
+              {loading ? (
+                <div className="space-y-4 p-4">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="h-12 rounded-lg bg-bg-elevated animate-pulse" />
+                  ))}
+                </div>
+              ) : timeline.length > 0 ? (
+                <ActivityFeed items={timeline} />
+              ) : (
+                <div className="py-20 text-center">
+                  <p className="text-sm text-text-muted">No recent activity found.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

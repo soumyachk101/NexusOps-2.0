@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, workspace, webhooks
 from app.routers.memory import ingest, query, tasks, problems
 from app.routers.autofix import repos, incidents, fixes, revert
+from app.routers import auth, workspace, webhooks, nexus
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -49,6 +49,9 @@ app.include_router(repos.router,      prefix="/api/v1/autofix/repos",     tags=[
 app.include_router(incidents.router,  prefix="/api/v1/autofix/incidents", tags=["autofix"])
 app.include_router(fixes.router,      prefix="/api/v1/autofix/fixes",     tags=["autofix"])
 app.include_router(revert.router,     prefix="/api/v1/autofix/revert",    tags=["autofix"])
+
+# ── Integration Layer ──
+app.include_router(nexus.router,      prefix="/api/v1/nexus",             tags=["nexus"])
 
 
 @app.get("/health", tags=["system"])

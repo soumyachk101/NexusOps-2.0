@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from uuid import UUID
+from datetime import datetime, timezone
 
 from app.database import get_db, async_session_maker
 from app.dependencies import get_current_user
@@ -9,11 +10,13 @@ from app.models.user import User
 from app.models.incident import Incident
 from app.models.fix import Fix
 from app.models.repository import Repository
+from app.models.activity_log import ActivityLog
 from app.models.document_chunk import DocumentChunk
 from app.services.workspace_service import workspace_service
 from app.services.ai_service import ai_service
 from app.services.embedding_service import embedding_service
 from app.services.github_service import github_service
+from app.models.source import Source
 from app.schemas.autofix import IncidentResponse, CreateManualIncidentRequest
 from app.config import settings
 
@@ -213,9 +216,60 @@ async def run_incident_pipeline(incident_id: UUID):
                     incident.pr_branch = pr_result["branch"]
                     fix.pr_url = pr_result["pr_url"]
 
-            from datetime import datetime, timezone
             incident.pr_created_at = datetime.now(timezone.utc)
             incident.status = "pr_created"
+            
+            # ── Log Activity ──
+            log = ActivityLog(
+                workspace_id=incident.workspace_id,
+                module="autofix",
+                action="pr_created",
+                resource_type="incident",
+                resource_id=incident.id,
+                metadata_={
+                    "title": f"Draft PR Created: {fix.title}",
+                    "description": f"AI generated a fix for error: {sanitized_error[:100]}",
+                    "pr_url": incident.pr_url,
+                }
+            )
+            db.add(log)
+
+            # ── Incident Indexing (Memory) ──
+            # Index the fix as a new memory source so we "learn" from it
+            try:
+                memory_source = Source(
+                    workspace_id=incident.workspace_id,
+                    name=f"Fix Runbook: {sanitized_error[:50]}",
+                    source_type="incident_fix",
+                    status="processed",
+                    metadata_={
+                        "incident_id": str(incident.id),
+                        "fix_id": str(fix.id),
+                        "error": sanitized_error,
+                        "fix_explanation": fix.explanation,
+                    }
+                )
+                db.add(memory_source)
+                await db.commit()
+                await db.refresh(memory_source)
+
+                # Embed the fix explanation
+                fix_text = f"Error: {sanitized_error}\nRoot Cause: {incident.root_cause}\nFix: {fix.explanation}"
+                embedding = await embedding_service.generate_embedding(fix_text)
+                if embedding:
+                    chunk = DocumentChunk(
+                        workspace_id=incident.workspace_id,
+                        source_id=memory_source.id,
+                        chunk_index=0,
+                        text=fix_text,
+                        embedding_json=embedding_service.embedding_to_json(embedding),
+                        source_type="incident_fix",
+                        incident_id=incident.id,
+                    )
+                    db.add(chunk)
+            except Exception as e:
+                print(f"Failed to index incident into memory: {e}")
+
             await db.commit()
 
         except Exception as e:

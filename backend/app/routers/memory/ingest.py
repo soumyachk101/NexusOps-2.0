@@ -18,6 +18,7 @@ from app.models.task import Task
 from app.services.workspace_service import workspace_service
 from app.services.ai_service import ai_service
 from app.services.embedding_service import embedding_service
+from app.models.activity_log import ActivityLog
 from app.schemas.memory import SourceResponse
 
 
@@ -74,6 +75,20 @@ async def _chunk_and_embed(
         if source:
             source.status = "processed"
             source.processed_at = datetime.now(timezone.utc)
+            
+            # ── Log Activity ──
+            log = ActivityLog(
+                workspace_id=workspace_id,
+                module="memory",
+                action="document_ingested" if source_type == "document" else "voice_transcribed",
+                resource_type="source",
+                resource_id=source_id,
+                metadata_={
+                    "title": f"Source Processed: {source.name}",
+                    "description": f"New {source_type} indexed and ready for Q&A.",
+                }
+            )
+            db.add(log)
 
         await db.commit()
 

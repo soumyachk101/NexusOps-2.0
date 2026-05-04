@@ -9,6 +9,7 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.document_chunk import DocumentChunk
 from app.models.source import Source
+from app.models.activity_log import ActivityLog
 from app.services.workspace_service import workspace_service
 from app.services.ai_service import ai_service
 from app.services.embedding_service import embedding_service
@@ -110,6 +111,22 @@ async def memory_query(
         answer = f"Error processing query. Please ensure the AI service is configured."
 
     latency_ms = int((time.time() - start) * 1000)
+
+    # ── Log Activity ──
+    log = ActivityLog(
+        workspace_id=workspace_id,
+        module="memory",
+        action="memory_query",
+        resource_type=None,
+        resource_id=None,
+        metadata_={
+            "title": f"Q&A: {query[:50]}",
+            "description": f"Answered in {latency_ms}ms using {len(sources_used)} sources.",
+            "query": query,
+        }
+    )
+    db.add(log)
+    await db.commit()
 
     return QueryResponse(
         answer=answer,
