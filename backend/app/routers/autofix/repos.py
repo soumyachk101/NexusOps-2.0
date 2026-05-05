@@ -28,6 +28,7 @@ async def connect_repo(
     language = None
     is_private = False
 
+    github_repo_id = None
     if body.github_token:
         try:
             from github import Github
@@ -37,6 +38,7 @@ async def connect_repo(
             default_branch = gh_repo.default_branch
             language = gh_repo.language
             is_private = gh_repo.private
+            github_repo_id = gh_repo.id
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to access GitHub repository. Verify your token and repo name. Error: {str(e)}")
 
@@ -44,6 +46,7 @@ async def connect_repo(
         workspace_id=body.workspace_id,
         name=name,
         full_name=body.full_name,
+        github_repo_id=github_repo_id,
         default_branch=default_branch,
         language=language,
         is_private=is_private,
@@ -53,6 +56,7 @@ async def connect_repo(
     await db.commit()
     await db.refresh(repo)
     return RepositoryResponse.model_validate(repo)
+
 
 
 @router.get("/", response_model=list[RepositoryResponse])

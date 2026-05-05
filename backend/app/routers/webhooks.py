@@ -117,9 +117,14 @@ async def sentry_webhook(project_token: str, request: Request, background_tasks:
                 func = frame.get("function", "?")
                 stack_trace += f'  File "{filename}", line {lineno}, in {func}\n'
 
+    try:
+        ws_id = UUID(project_token)
+    except ValueError:
+        return {"status": "error", "detail": "Invalid workspace token"}
+
     async with async_session_maker() as db:
         incident = Incident(
-            workspace_id=project_token,
+            workspace_id=ws_id,
             source="sentry",
             error_message=error_message,
             raw_stack_trace=stack_trace or None,
@@ -131,6 +136,7 @@ async def sentry_webhook(project_token: str, request: Request, background_tasks:
         await db.commit()
         await db.refresh(incident)
         incident_id = incident.id
+
 
     background_tasks.add_task(run_incident_pipeline, incident_id)
     return {"status": "accepted", "incident_id": str(incident_id)}
